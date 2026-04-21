@@ -77,7 +77,7 @@ if (
         `Se registró una ${tipoTexto} de ${cantidad} unidades del producto ${productoDB.nombre}.
 Stock actual: ${productoDB.stock}`
     );
-}
+}        // prueba rama backend
 
         // CREAR MOVIMIENTO
         const movimiento = new Movimiento({
