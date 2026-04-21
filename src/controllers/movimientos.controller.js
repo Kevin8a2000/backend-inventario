@@ -63,7 +63,7 @@ const limite = Number(productoDB.movimientoMaximo) || 50;
 
 console.log("LIMITE:", limite);
 
-// MOVIMIENTO GRANDE
+// MOVIMIENTO GRANDE       git status
 const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SALIDA";
 
 if (
