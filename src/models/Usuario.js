@@ -172,7 +172,11 @@ const usuarioSchema = new mongoose.Schema({
         type: Date,
 
         default: null
-    }
+    },
+
+    resetPasswordToken: String,
+
+    resetPasswordExpires: Date
 
 }, {
 

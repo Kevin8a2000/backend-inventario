@@ -8,6 +8,8 @@ const { escaparHTML } = require("../utils/sanitizar");
 
 const { enviarCorreo } = require("../utils/email");
 
+const crypto = require("crypto");
+
 // =====================================================
 // 🔐 REGISTRO
 // =====================================================
@@ -404,26 +406,27 @@ const recuperarPassword = async (req, res) => {
     try {
         const { email } = req.body;
 
+        const emailLimpio = email?.trim().toLowerCase();
+
         // 🔍 BUSCAR USUARIO
-        const usuario = await Usuario.findOne({ email });
+        const usuario = await Usuario.findOne({ email: emailLimpio });
 
         if (!usuario) {
             // No revelar si el usuario existe por seguridad
             return res.json({
                 ok: true,
-                mensaje: "Si el email existe, recibirás un correo de recuperación"
+                mensaje: "Email enviado"
             });
         }
 
         // 🔐 GENERAR TOKEN
-        const token = jwt.sign(
-            { id: usuario._id },
-            process.env.JWT_SECRET,
-            { expiresIn: "15m" }
-        );
+        const token = crypto.randomBytes(20).toString("hex");
+        usuario.resetPasswordToken = token;
+        usuario.resetPasswordExpires = Date.now() + 3600000; // 1 hora
+        await usuario.save();
 
         // 🔗 LINK FRONTEND
-        const link = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${token}`;
+        const link = `https://invenstock-la-costa.vercel.app/reset-password/${token}`;
 
         // 📧 ENVIAR CORREO
         await enviarCorreo(
@@ -435,14 +438,14 @@ Haz clic en el siguiente enlace para recuperar tu contraseña:
 
 ${link}
 
-⚠️ Este enlace expirará en 15 minutos.
+⚠️ Este enlace expirará en 1 hora.
 
 Si no solicitaste esta recuperación, ignora este correo.`
         );
 
         res.json({
             ok: true,
-            mensaje: "Si el email existe, recibirás un correo de recuperación"
+            mensaje: "Email enviado"
         });
 
     } catch (error) {
@@ -474,22 +477,23 @@ const resetPassword = async (req, res) => {
             });
         }
 
-        // 🔐 VALIDAR TOKEN
-        let decoded;
-        try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch {
+        // ✅ VALIDAR FORTALEZA DE CONTRASEÑA
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{12,}$/;
+        if (!passwordRegex.test(password)) {
             return res.status(400).json({
                 ok: false,
-                error: "Token inválido o expirado"
+                error: "La contraseña debe tener mínimo 12 caracteres, una mayúscula, un número y un carácter especial (!@#$%^&*)"
             });
         }
 
         // 🔍 BUSCAR USUARIO
-        const usuario = await Usuario.findById(decoded.id);
+        const usuario = await Usuario.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
 
         if (!usuario) {
-            return res.status(404).json({
+            return res.status(400).json({
                 ok: false,
                 error: "Usuario no encontrado"
             });
@@ -498,6 +502,10 @@ const resetPassword = async (req, res) => {
         // 🔒 ENCRIPTAR PASSWORD
         const hash = await bcrypt.hash(password, 10);
         usuario.password = hash;
+
+        // 🗑️ LIMPIAR TOKEN
+        usuario.resetPasswordToken = undefined;
+        usuario.resetPasswordExpires = undefined;
 
         // 💾 GUARDAR
         await usuario.save();

@@ -35,6 +35,18 @@ const limiterAuth = rateLimit({
     }
 });
 
+// Limiter específico para recuperación (3 intentos / 15 min)
+const limiterRecuperar = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 3,
+    message: {
+        ok: false,
+        error: "Demasiados intentos de recuperación. Espera 15 minutos."
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 // =====================================================
 // ✅ LOGIN / REGISTER CON VALIDACIÓN
 // =====================================================
@@ -59,7 +71,7 @@ router.post(
 
 router.post(
     "/recuperar-password",
-    limiterAuth,
+    limiterRecuperar,
     validarRecuperarPassword,
     recuperarPassword
 );
