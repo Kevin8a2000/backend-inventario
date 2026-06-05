@@ -297,12 +297,11 @@ router.put(
             }
 
             const stockAnterior = producto.stock;
+            // SKU y nombre NO se modifican desde edición de lote — tienen índice único
             if (lote !== undefined) producto.lote = {
                 ...producto.lote,
                 codigo: sanitizarTexto(String(lote))
             };
-            if (nombre !== undefined) producto.nombre = sanitizarTexto(nombre);
-            if (sku !== undefined) producto.sku = sanitizarTexto(sku);
             if (stock !== undefined) producto.stock = Number(stock);
             if (fechaVencimiento !== undefined) producto.fechaVencimiento = fechaVencimiento || null;
             if (observacionLote !== undefined) producto.observacionLote = sanitizarTexto(observacionLote);
