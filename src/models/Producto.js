@@ -64,7 +64,7 @@ const productoSchema = new mongoose.Schema({
     lote: {
         codigo: {
             type: String,
-            required: true
+            default: 'N/A'
         },
         fechaEntrada: {
             type: Date,
