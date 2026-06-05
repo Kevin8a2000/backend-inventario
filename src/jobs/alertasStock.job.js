@@ -2,7 +2,7 @@ const cron = require("node-cron");
 
 const Producto = require("../models/Producto");
 
-const enviarCorreo = require("../utils/email");
+const { enviarCorreo } = require("../utils/email");
 
 const crearNotificacion =
 require("../utils/crearNotificacion");

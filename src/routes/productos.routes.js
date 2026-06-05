@@ -265,11 +265,12 @@ router.post(
 
             const limiteMovimiento = Number(producto.movimientoMaximo) || 50;
             if (Number(cantidad) >= limiteMovimiento) {
-                await enviarCorreo(
+                // 📧 Fire-and-forget — no bloquea la respuesta HTTP
+                enviarCorreo(
                     process.env.EMAIL_TO,
                     "🔥 Reposición grande detectada",
                     `Producto: ${producto.nombre}\n\nStock anterior: ${stockAnterior}\nCantidad agregada: ${cantidad}\n\nNuevo stock: ${producto.stock}`
-                );
+                ).catch(err => console.error("Error al enviar correo reposición:", err.message));
             }
 
             res.json({ mensaje: "Stock repuesto correctamente", producto });
@@ -344,11 +345,12 @@ router.put(
                 "info"
             );
 
-            await enviarCorreo(
+            // 📧 Fire-and-forget — no bloquea la respuesta HTTP
+            enviarCorreo(
                 process.env.EMAIL_TO,
                 "✏️ Lote actualizado",
                 `Producto: ${producto.nombre}\n\nLote: ${producto.lote}\n\nSKU: ${producto.sku}\n\nStock anterior: ${stockAnterior}\n\nNuevo stock: ${producto.stock}`
-            );
+            ).catch(err => console.error("Error al enviar correo lote:", err.message));
 
             res.json({ mensaje: "Lote actualizado correctamente", producto });
         } catch (error) {
