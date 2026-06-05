@@ -111,6 +111,7 @@ app.use(limiterGeneral);
 const origenesPermitidos = [
     process.env.FRONTEND_URL || null,
     process.env.VERCEL_URL || null,
+    "https://invenstock-la-costa.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
