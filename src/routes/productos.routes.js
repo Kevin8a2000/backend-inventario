@@ -281,6 +281,36 @@ router.post(
 );
 
 // =====================================================
+// ❌ ELIMINAR LOTE (protegido)
+// =====================================================
+router.delete(
+    "/lotes/:id",
+    verificarToken,
+    validarObjectId,
+    verificarPermiso("eliminar_producto"),
+    async (req, res) => {
+        try {
+            const producto = await Producto.findByIdAndDelete(req.params.id);
+
+            if (!producto) {
+                return res.status(404).json({ ok: false, error: "Lote no encontrado" });
+            }
+
+            await crearNotificacion(
+                "Lote eliminado",
+                `El lote ${producto.lote?.codigo || "S/N"} del producto ${producto.nombre} fue eliminado.`,
+                "warning"
+            );
+
+            res.json({ ok: true, mensaje: "Lote eliminado correctamente" });
+        } catch (error) {
+            console.error("Error al eliminar lote:", error);
+            res.status(500).json({ ok: false, error: "Error al eliminar lote" });
+        }
+    }
+);
+
+// =====================================================
 // ✏️ EDITAR LOTES (protegido)
 // =====================================================
 router.put(
