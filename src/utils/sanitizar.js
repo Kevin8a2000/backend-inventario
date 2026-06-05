@@ -66,11 +66,55 @@ const limitarLongitud = (texto, maximo) => {
     return texto.substring(0, maximo).trim();
 };
 
+const limpiarObjeto = (valor) => {
+
+    // null o undefined
+    if (valor == null) return valor;
+
+    // Array
+    if (Array.isArray(valor)) {
+        return valor.map(item => limpiarObjeto(item));
+    }
+
+    // Objeto
+    if (typeof valor === "object" && !(valor instanceof Date)) {
+        const resultado = {};
+
+        for (const [key, val] of Object.entries(valor)) {
+            resultado[key] = limpiarObjeto(val);
+        }
+
+        return resultado;
+    }
+
+    // String
+    if (typeof valor === "string") {
+
+        const texto = valor.trim();
+
+        // Intentar detectar fecha ISO
+        const fecha = new Date(texto);
+
+        if (
+            /^\d{4}-\d{2}-\d{2}/.test(texto) &&
+            !isNaN(fecha.getTime())
+        ) {
+            return fecha;
+        }
+
+        return escaparHTML(texto);
+    }
+
+    return valor;
+};
+
+
 module.exports = { 
     escaparHTML, 
     sanitizarObjeto, 
     limpiarScripts,
     sanitizarURL,
     sanitizarEmail,
-    limitarLongitud
+    limitarLongitud,
+    limpiarObjeto
 };

@@ -1,5 +1,5 @@
 const Producto = require("../models/Producto");
-const { escaparHTML, sanitizarObjeto, limitarLongitud } = require("../utils/sanitizar");
+const { escaparHTML, sanitizarObjeto, limitarLongitud, limpiarObjeto} = require("../utils/sanitizar");
 const { enviarCorreo } = require("../utils/email");
 
 // ✅ GET - obtener todos los productos
@@ -100,7 +100,7 @@ exports.crearProducto = async (req, res) => {
 
             // 🔥 CONTROL LOTES
             usaLotes: usaLotes || false,
-            lote: escaparHTML(lote || ""),
+            lote: limpiarObjeto(lote || ""),
             fechaVencimiento: fechaVencimiento || null,
             diasAlerta: Number(diasAlerta) || 30,
             observacionLote: escaparHTML(limitarLongitud(observacionLote || "", 300))
