@@ -22,7 +22,7 @@ const verificarToken = require("../middlewares/auth");
 const verificarPermiso = require("../middlewares/verificarPermiso");
 const validarObjectId = require("../middlewares/validarObjectId");
 const crearNotificacion = require("../utils/crearNotificacion");
-const enviarCorreo = require("../utils/email");
+const { enviarCorreo } = require("../utils/email");
 const { escaparHTML } = require("../utils/sanitizar");
 
 const sanitizarTexto = (texto) => {
