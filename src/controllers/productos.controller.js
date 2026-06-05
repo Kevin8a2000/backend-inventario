@@ -78,12 +78,8 @@ exports.crearProducto = async (req, res) => {
                 });
             }
 
-            if (!fechaVencimiento) {
-                return res.status(400).json({
-                    ok: false,
-                    error: "La fecha de vencimiento es obligatoria"
-                });
-            }
+           
+            
         }
 
         // 🟢 CREAR PRODUCTO
