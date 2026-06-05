@@ -297,18 +297,21 @@ router.put(
             }
 
             const stockAnterior = producto.stock;
-            if (lote !== undefined) producto.lote = sanitizarTexto(lote);
+            if (lote !== undefined) producto.lote = {
+                ...producto.lote,
+                codigo: sanitizarTexto(String(lote))
+            };
             if (nombre !== undefined) producto.nombre = sanitizarTexto(nombre);
             if (sku !== undefined) producto.sku = sanitizarTexto(sku);
             if (stock !== undefined) producto.stock = Number(stock);
-            if (fechaVencimiento !== undefined) producto.fechaVencimiento = fechaVencimiento;
+            if (fechaVencimiento !== undefined) producto.fechaVencimiento = fechaVencimiento || null;
             if (observacionLote !== undefined) producto.observacionLote = sanitizarTexto(observacionLote);
 
             await producto.save();
 
             await crearNotificacion(
                 "Lote actualizado",
-                `El lote ${producto.lote} fue actualizado.`,
+                `El lote ${producto.lote?.codigo || producto.lote} fue actualizado.`,
                 "info"
             );
 
