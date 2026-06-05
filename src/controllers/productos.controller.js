@@ -101,7 +101,9 @@ exports.crearProducto = async (req, res) => {
             // 🔥 CONTROL LOTES
             usaLotes: usaLotes || false,
             lote: limpiarObjeto(lote || ""),
-            fechaVencimiento: fechaVencimiento || null,
+            fechaVencimiento: fechaVencimiento
+                ? new Date(fechaVencimiento)
+                : null|| null,
             diasAlerta: Number(diasAlerta) || 30,
             observacionLote: escaparHTML(limitarLongitud(observacionLote || "", 300))
         });
