@@ -62,9 +62,30 @@ const productoSchema = new mongoose.Schema({
     },
 
     lote: {
-        type: String,
-        default: "",
-        trim: true
+        codigo: {
+            type: String,
+            required: true
+        },
+        fechaEntrada: {
+            type: Date,
+            default: Date.now
+        },
+        usaVencimiento: {
+            type: Boolean,
+            default: false
+        },
+        fechaVencimiento: {
+            type: Date,
+            required: false  // 👈 no obligatorio
+        },
+        diasAlerta: {
+            type: Number,
+            default: 30
+        },
+        observacion: {
+            type: String,
+            default: ''
+        }
     },
 
     fechaVencimiento: {

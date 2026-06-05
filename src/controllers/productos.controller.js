@@ -71,10 +71,10 @@ exports.crearProducto = async (req, res) => {
         // =====================================================
 
         if (usaLotes) {
-            if (!lote || lote.trim() === "") {
+            if (!lote || Object.keys(lote).length === 0) {
                 return res.status(400).json({
                     ok: false,
-                    error: "El código de lote es obligatorio"
+                    error: "El lote es obligatorio"
                 });
             }
 
