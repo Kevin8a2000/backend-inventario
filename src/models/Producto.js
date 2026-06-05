@@ -108,6 +108,11 @@ const productoSchema = new mongoose.Schema({
     disponible: {
         type: Boolean,
         default: true
+    },
+
+    imagen: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true

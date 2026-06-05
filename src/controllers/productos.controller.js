@@ -54,7 +54,8 @@ exports.crearProducto = async (req, res) => {
             lote,
             fechaVencimiento,
             diasAlerta,
-            observacionLote
+            observacionLote,
+            imagen
         } = req.body;
 
         // 🔒 SANITIZAR INPUTS
@@ -105,7 +106,8 @@ exports.crearProducto = async (req, res) => {
                 ? new Date(fechaVencimiento)
                 : null,
             diasAlerta: Number(diasAlerta) || 30,
-            observacionLote: escaparHTML(limitarLongitud(observacionLote || "", 300))
+            observacionLote: escaparHTML(limitarLongitud(observacionLote || "", 300)),
+            imagen: imagen || null
         });
 
         await nuevoProducto.save();
@@ -141,7 +143,7 @@ exports.actualizarProducto = async (req, res) => {
         // 🔒 WHITELIST - Solo campos permitidos
         // =====================================================
 
-        const camposPermitidos = ['nombre', 'descripcion', 'marca', 'precio', 'stock', 'stockMinimo', 'movimientoMaximo', 'categoria'];
+        const camposPermitidos = ['nombre', 'descripcion', 'marca', 'precio', 'stock', 'stockMinimo', 'movimientoMaximo', 'categoria', 'imagen'];
         const datosActualizacion = {};
 
         for (const campo of camposPermitidos) {

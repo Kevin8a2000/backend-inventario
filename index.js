@@ -140,13 +140,13 @@ app.locals.limiterAuth = limiterAuth;
 // 🔥 MIDDLEWARES
 // =====================================================
 
-app.use(express.json({ 
-    limit: '10kb' 
+app.use(express.json({
+    limit: '200kb'
 }));
 
 app.use(express.urlencoded({
     extended: true,
-    limit: '10kb',
+    limit: '200kb',
     parameterLimit: 50
 }));
 
