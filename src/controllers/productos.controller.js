@@ -9,12 +9,19 @@ exports.obtenerProductos = async (req, res) => {
             .populate("categoria", "nombre");
 
         // Sanitizar datos de respuesta
-        const productosLimpios = productos.map(p => ({
-            ...p.toObject(),
-            nombre: escaparHTML(p.nombre),
-            descripcion: escaparHTML(p.descripcion),
-            marca: escaparHTML(p.marca)
-        }));
+        const productosLimpios = productos.map(p => {
+            const obj = p.toObject();
+            // 🛠️ Normalizar lote para registros antiguos corruptos (migración al vuelo)
+            if (typeof obj.lote !== 'object' || obj.lote === null) {
+                obj.lote = { codigo: "S/N", fechaEntrada: obj.createdAt || new Date() };
+            }
+            return {
+                ...obj,
+                nombre: escaparHTML(p.nombre),
+                descripcion: escaparHTML(p.descripcion),
+                marca: escaparHTML(p.marca)
+            };
+        });
 
         res.json({
             ok: true,
@@ -71,15 +78,12 @@ exports.crearProducto = async (req, res) => {
         // =====================================================
 
         if (usaLotes) {
-            if (!lote || Object.keys(lote).length === 0) {
+            if (!lote || typeof lote !== 'object' || !lote.codigo) {
                 return res.status(400).json({
                     ok: false,
-                    error: "El lote es obligatorio"
+                    error: "El código de lote (lote.codigo) es obligatorio cuando se usa control de lotes"
                 });
             }
-
-           
-            
         }
 
         // 🟢 CREAR PRODUCTO
@@ -96,10 +100,10 @@ exports.crearProducto = async (req, res) => {
 
             // 🔥 CONTROL LOTES
             usaLotes: usaLotes || false,
-            lote: limpiarObjeto(lote || ""),
+            lote: (usaLotes && lote && typeof lote === 'object') ? lote : { codigo: "N/A", fechaEntrada: new Date() },
             fechaVencimiento: fechaVencimiento
                 ? new Date(fechaVencimiento)
-                : null|| null,
+                : null,
             diasAlerta: Number(diasAlerta) || 30,
             observacionLote: escaparHTML(limitarLongitud(observacionLote || "", 300))
         });
