@@ -126,7 +126,7 @@ app.use(cors({
             callback(new Error("Origen no permitido por CORS"));
         }
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     maxAge: 3600
@@ -183,7 +183,7 @@ app.use(
     permisosRoutes
 );
 
-// �📦 PRODUCTOS
+// ��📦 PRODUCTOS
 app.use(
     "/api/productos",
     productosRoutes
