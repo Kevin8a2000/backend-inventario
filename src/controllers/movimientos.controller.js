@@ -1,170 +1,425 @@
 const Movimiento = require("../models/Movimiento");
 const Producto = require("../models/Producto");
-const enviarCorreo = require("../utils/email");
 const Usuario = require("../models/Usuario");
+const Notificacion = require("../models/Notificacion");
+const crearNotificacion = require("../utils/crearNotificacion");
 
-// CREAR MOVIMIENTO
+const { enviarCorreo } = require("../utils/email");
+
+// =====================================================
+// 🔥 CREAR MOVIMIENTO
+// =====================================================
+
 const crearMovimiento = async (req, res) => {
+
     try {
-       const { producto, tipo } = req.body;
-        
-       const cantidad = Number(req.body.cantidad);
 
-        const productoDB = await Producto.findById(producto);
+        const { producto, tipo } = req.body;
 
-        const usuarioDB = await Usuario.findById(req.usuario.id);
+        const cantidad =
+            Number(req.body.cantidad);
+
+        // =====================================================
+        // 🔒 VALIDAR TIPO (NoSQL Injection)
+        // =====================================================
+
+        const tiposValidos = ["entrada", "salida"];
+        if (!tipo || !tiposValidos.includes(tipo)) {
+            return res.status(400).json({
+                error: "El tipo debe ser 'entrada' o 'salida'"
+            });
+        }
+
+        // =====================================================
+        // ✅ VALIDAR PRODUCTO
+        // =====================================================
+
+        if (!producto) {
+
+            return res.status(400).json({
+
+                error:
+                    "Debe enviar el ID del producto"
+            });
+        }
+
+        const productoDB =
+            await Producto.findById(producto);
+
+        const usuarioDB =
+            await Usuario.findById(req.usuario.id);
 
         if (!productoDB) {
-            return res.status(404).json({ error: "Producto no existe" });
+
+            return res.status(404).json({
+
+                error:
+                    "Producto no existe"
+            });
         }
 
-        // VALIDAR STOCK EN SALIDA
-        if (tipo === "salida" && productoDB.stock < cantidad) {
-            return res.status(400).json({ error: "Stock insuficiente" });
+        // =====================================================
+        // ✅ VALIDAR STOCK
+        // =====================================================
+
+        if (
+            tipo === "salida" &&
+            productoDB.stock < cantidad
+        ) {
+
+            return res.status(400).json({
+
+                error:
+                    "Stock insuficiente"
+            });
         }
 
-        // ACTUALIZAR STOCK
+        // =====================================================
+        // 🔥 ACTUALIZAR STOCK
+        // =====================================================
+
         if (tipo === "entrada") {
+
             productoDB.stock += cantidad;
+
         } else if (tipo === "salida") {
+
             productoDB.stock -= cantidad;
         }
 
         await productoDB.save();
 
-        // 🔔 NOTIFICACIONES
+        // =====================================================
+        // 🚨 STOCK AGOTADO (CRÍTICO - SONAR)
+        // =====================================================
 
-// STOCK AGOTADO
-if (productoDB.stock === 0 && usuarioDB.notificaciones.stockAgotado) {
-    await enviarCorreo(
-        "Producto sin stock",
-        `El producto ${productoDB.nombre} se ha quedado sin stock`
-    );
-}
+        if (
+            productoDB.stock === 0 &&
+            usuarioDB.notificaciones.stockAgotado
+        ) {
 
-// STOCK BAJO
-if (
-    productoDB.stock <= productoDB.stockMinimo &&
-    usuarioDB.notificaciones.stockBajo
-)  {
-    await enviarCorreo(
-        "Alerta de stock bajo",
-        `El producto ${productoDB.nombre} está por debajo del stock mínimo`
-    );
-}
+            // 🔔 NOTIFICACIÓN CRÍTICA + SONIDO
+            const io = req.app.get("io");
+            await crearNotificacion(
+                "🚨 PRODUCTO SIN STOCK",
+                `⚠️ CRÍTICO: ${productoDB.nombre} se ha quedado sin stock.`,
+                "stock_agotado",
+                producto,
+                io,
+                true
+            );
 
-// MOVIMIENTO GRANDE
- // 🔍 DEBUG (puedes borrarlo luego)
-console.log("movimientoMaximo:", productoDB.movimientoMaximo);
-console.log("cantidad:", cantidad);
+            // 📧 CORREO
+            await enviarCorreo(
 
-// 🔥 LÓGICA SEGURA
-const limite = Number(productoDB.movimientoMaximo) || 50;
+                process.env.EMAIL_TO,
 
-console.log("LIMITE:", limite);
+                "🚨 Producto sin stock",
 
-// MOVIMIENTO GRANDE       git status
-const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SALIDA";
+                `El producto ${productoDB.nombre} se ha quedado sin stock`
+            );
+        }
 
-if (
-    cantidad >= limite &&
-    usuarioDB.notificaciones.movimientoGrande
-) {
-    console.log("🔥 MOVIMIENTO GRANDE DETECTADO");
+        // =====================================================
+        // 🔴 REPOSICIÓN NECESARIA (Stock < 50)
+        // =====================================================
 
-    await enviarCorreo(
-        "Movimiento grande detectado",
-        `Se registró una ${tipoTexto} de ${cantidad} unidades del producto ${productoDB.nombre}.
-Stock actual: ${productoDB.stock}`
-    );
-}        // prueba rama backend
+        const needsReposicion = productoDB.stock < 50 && productoDB.stock > 0;
+        const isCriticalLow = productoDB.stock <= 20;
 
-        // CREAR MOVIMIENTO
-        const movimiento = new Movimiento({
-            producto,
-            tipo,
-            cantidad,
-            usuario: req.usuario.id // viene del token
-        });
+        if (
+            needsReposicion &&
+            usuarioDB.notificaciones.stockBajo
+        ) {
+
+            const io = req.app.get("io");
+            const es_critico = isCriticalLow;
+            
+            await crearNotificacion(
+                es_critico ? "🚨 REPOSICIÓN URGENTE" : "⚠️ Reposición necesaria",
+                es_critico 
+                    ? `⚠️ CRÍTICO: ${productoDB.nombre} stock muy bajo (${productoDB.stock} unidades)`
+                    : `Reposición: ${productoDB.nombre} necesita abastecimiento (${productoDB.stock} unidades)`,
+                "reposicion_necesaria",
+                producto,
+                io,
+                es_critico
+            );
+
+            // 📧 CORREO
+            await enviarCorreo(
+
+                process.env.EMAIL_TO,
+
+                "⚠️ Alerta de stock bajo",
+
+                `El producto ${productoDB.nombre} está por debajo del stock mínimo
+        
+Stock actual: ${productoDB.stock}
+Stock mínimo: ${productoDB.stockMinimo}`
+            );
+        }
+
+        // =====================================================
+        // 🚨 MOVIMIENTOS GRANDES (EMPRESA REAL)
+        // =====================================================
+
+        const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SALIDA";
+        
+        // Umbrales realistas:
+        // - Abastecimiento en lotes: >= 200 unidades (SONIDO FUERTE)
+        // - Movimiento Crítico: >= 100 unidades (SONIDO)
+        // - Movimiento Grande: 50-100 unidades (AVISO)
+
+        const es_abastecimiento_grande = tipo === "entrada" && cantidad >= 200;
+        const es_movimiento_critico = cantidad >= 100 && !(tipo === "entrada" && cantidad >= 200);
+        const es_movimiento_grande = cantidad >= 50 && cantidad < 100;
+
+        if (
+            usuarioDB.notificaciones.movimientoGrande &&
+            (es_movimiento_grande || es_movimiento_critico || es_abastecimiento_grande)
+        ) {
+
+            const io = req.app.get("io");
+
+            if (es_abastecimiento_grande) {
+                // 🚀 ABASTECIMIENTO GRANDE EN LOTES - CRÍTICO
+                console.log(
+                    `🚀 ABASTECIMIENTO GRANDE DETECTADO (${cantidad} unidades)`
+                );
+                
+                await crearNotificacion(
+                    "🚀 ABASTECIMIENTO GRANDE",
+                    `Entrada de ${cantidad} unidades de ${productoDB.nombre}. Stock nuevo: ${productoDB.stock} unidades`,
+                    "abastecimiento_grande",
+                    producto,
+                    io,
+                    true
+                );
+
+                await enviarCorreo(
+                    process.env.EMAIL_TO,
+                    "🚀 Abastecimiento grande registrado",
+                    `Se registró abastecimiento de ${cantidad} unidades de ${productoDB.nombre}\n\n📦 Stock nuevo: ${productoDB.stock}`
+                );
+
+            } else if (es_movimiento_critico) {
+                // 🚨 MOVIMIENTO CRÍTICO - SONIDO
+                console.log(
+                    `🚨 MOVIMIENTO CRÍTICO DETECTADO (${cantidad} unidades)`
+                );
+                
+                await crearNotificacion(
+                    "🚨 MOVIMIENTO CRÍTICO",
+                    `${tipoTexto} importante de ${cantidad} unidades de ${productoDB.nombre}. Stock: ${productoDB.stock}`,
+                    "movimiento_critico",
+                    producto,
+                    io,
+                    true
+                );
+
+                await enviarCorreo(
+                    process.env.EMAIL_TO,
+                    "🚨 Movimiento crítico detectado",
+                    `Se registró ${tipoTexto} crítica de ${cantidad} unidades de ${productoDB.nombre}\n\n📦 Stock actual: ${productoDB.stock}`
+                );
+
+            } else if (es_movimiento_grande) {
+                // ⚠️ MOVIMIENTO GRANDE - SIN SONIDO
+                console.log(
+                    `⚠️ MOVIMIENTO GRANDE DETECTADO (${cantidad} unidades)`
+                );
+                
+                await crearNotificacion(
+                    "⚠️ Movimiento grande",
+                    `${tipoTexto} de ${cantidad} unidades de ${productoDB.nombre}. Stock: ${productoDB.stock}`,
+                    "movimiento_grande",
+                    producto,
+                    io,
+                    false
+                );
+
+                await enviarCorreo(
+                    process.env.EMAIL_TO,
+                    "⚠️ Movimiento grande",
+                    `Se registró ${tipoTexto} de ${cantidad} unidades de ${productoDB.nombre}\n\n📦 Stock: ${productoDB.stock}`
+                );
+            }
+        }
+
+        // =====================================================
+        // 🔥 CREAR MOVIMIENTO
+        // =====================================================
+
+        const movimiento =
+            new Movimiento({
+
+                producto,
+
+                tipo,
+
+                cantidad,
+
+                usuario:
+                    req.usuario.id
+            });
 
         await movimiento.save();
 
-        res.json(movimiento);
+        // =====================================================
+        // ✅ RESPUESTA FINAL
+        // =====================================================
+
+        res.json({
+
+            ok: true,
+
+            mensaje:
+                "Movimiento registrado correctamente",
+
+            movimiento
+        });
 
     } catch (error) {
-    console.log("ERROR REAL:", error); // 👈 esto lo muestra en consola
-    res.status(500).json({ error: error.message });
-}
 
+        console.log(
+            "ERROR REAL:",
+            error
+        );
+
+        res.status(500).json({
+
+            error:
+                error.message
+        });
+    }
 };
 
-// OBTENER MOVIMIENTOS (con filtro)
+// =====================================================
+// 🔥 OBTENER MOVIMIENTOS
+// =====================================================
+
 const getMovimientos = async (req, res) => {
+
     try {
-        const { producto, desde, hasta } = req.query;
+
+        const {
+
+            producto,
+
+            desde,
+
+            hasta
+
+        } = req.query;
 
         let filtro = {};
 
-        // 🟣 FILTRO POR PRODUCTO
+        // =====================================================
+        // 🔥 FILTRO PRODUCTO
+        // =====================================================
+
         if (producto) {
+
             filtro.producto = producto;
         }
 
-        // 🟣 FILTRO POR FECHA
+        // =====================================================
+        // 📅 FILTRO FECHAS
+        // =====================================================
+
         if (desde && hasta) {
+
             filtro.createdAt = {
+
                 $gte: new Date(desde),
+
                 $lte: new Date(hasta)
             };
         }
 
-        const movimientos = await Movimiento.find(filtro)
-            .populate("producto");
+        const movimientos =
+            await Movimiento.find(filtro)
+                .populate("producto");
 
         res.json(movimientos);
 
     } catch (error) {
-        res.status(500).json({ error: "Error al obtener movimientos" });
+
+        res.status(500).json({
+
+            error:
+                "Error al obtener movimientos"
+        });
     }
 };
 
-// 🟣 RESUMEN DE MOVIMIENTOS (ENTRADAS VS SALIDAS)
+// =====================================================
+// 📊 RESUMEN MOVIMIENTOS
+// =====================================================
+
 const obtenerResumenMovimientos = async (req, res) => {
+
     try {
-        const resumen = await Movimiento.aggregate([
-            {
-                $group: {
-                    _id: "$tipo",
-                    total: { $sum: "$cantidad" }
+
+        const resumen =
+            await Movimiento.aggregate([
+
+                {
+                    $group: {
+
+                        _id: "$tipo",
+
+                        total: {
+                            $sum: "$cantidad"
+                        }
+                    }
                 }
-            }
-        ]);
+            ]);
 
         let resultado = {
+
             entrada: 0,
+
             salida: 0
         };
 
         resumen.forEach(item => {
+
             if (item._id === "entrada") {
-                resultado.entrada = item.total;
+
+                resultado.entrada =
+                    item.total;
             }
+
             if (item._id === "salida") {
-                resultado.salida = item.total;
+
+                resultado.salida =
+                    item.total;
             }
         });
 
         res.json(resultado);
 
     } catch (error) {
+
         res.status(500).json({
-            error: "Error al obtener resumen de movimientos"
+
+            error:
+                "Error al obtener resumen de movimientos"
         });
     }
 };
 
+// =====================================================
+// 🚀 EXPORTS
+// =====================================================
+
 module.exports = {
+
     crearMovimiento,
+
     getMovimientos,
+
     obtenerResumenMovimientos
 };

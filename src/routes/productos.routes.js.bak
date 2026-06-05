@@ -1,0 +1,813 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+    obtenerProductos,
+    crearProducto,
+    obtenerStockBajo,
+    obtenerValorInventario,
+    actualizarProducto,
+    eliminarProducto
+} = require("../controllers/productos.controller");
+
+const {
+    validarProducto,
+    validarActualizacionProducto,
+    validarIdProducto,
+    validarFechas
+} = require("../middlewares/validarInputs");
+
+const verificarToken = require("../middlewares/auth");
+const verificarPermiso = require("../middlewares/verificarPermiso");
+const validarObjectId = require("../middlewares/validarObjectId");
+
+// =====================================================
+// ✅ GET TODOS LOS PRODUCTOS
+// =====================================================
+
+router.get(
+    "/",
+    verificarToken,
+    verificarPermiso("ver_productos"),
+    obtenerProductos
+);
+
+// =====================================================
+// ✅ TOTAL PRODUCTOS
+// =====================================================
+
+router.get(
+    "/total",
+    verificarToken,
+    verificarPermiso("ver_reportes"),
+    async (req, res) => {
+        try {
+            const Producto = require("../models/Producto");
+            const total = await Producto.countDocuments();
+            res.json({ total });
+        } catch (error) {
+            res.status(500).json({
+                error: "Error al contar productos"
+            });
+        }
+    }
+);
+
+// =====================================================
+// 📉 STOCK BAJO
+// =====================================================
+
+router.get(
+    "/stock-bajo",
+    verificarToken,
+    verificarPermiso("ver_reportes"),
+    obtenerStockBajo
+);
+
+// =====================================================
+// 💰 VALOR INVENTARIO
+// =====================================================
+
+router.get(
+    "/valor-inventario",
+    verificarToken,
+    verificarPermiso("ver_reportes"),
+    obtenerValorInventario
+);
+
+// =====================================================
+// 📦 STOCK POR CATEGORÍA
+// =====================================================
+
+router.get(
+    "/stock-por-categoria",
+    verificarToken,
+    verificarPermiso("ver_reportes"),
+    async (req, res) => {
+        try {
+            const Producto = require("../models/Producto");
+            const resultado = await Producto.aggregate([
+                {
+                    $lookup: {
+                        from: "categorias",
+                        localField: "categoria",
+                        foreignField: "_id",
+                        as: "categoriaInfo"
+                    }
+                },
+                {
+                    $unwind: "$categoriaInfo"
+                },
+                {
+                    $group: {
+                        _id: "$categoriaInfo.nombre",
+                        totalStock: { $sum: "$stock" }
+                    }
+                }
+            ]);
+            res.json(resultado);
+        } catch (error) {
+            res.status(500).json({
+                error: "Error al obtener stock por categoría"
+            });
+        }
+    }
+);
+
+// =====================================================
+// 🔹 GET POR ID
+// =====================================================
+
+router.get(
+    "/:id",
+    verificarToken,
+    validarIdProducto,
+    async (req, res) => {
+        try {
+            const Producto = require("../models/Producto");
+            const producto = await Producto.findById(req.params.id);
+
+            if (!producto) {
+                return res.status(404).json({ error: "Producto no encontrado" });
+            }
+
+            res.json(producto);
+        } catch (error) {
+            res.status(500).json({
+                error: "Error al obtener producto"
+            });
+        }
+    }
+);
+
+// =====================================================
+// 🔒 POST - Crear producto (protegido)
+// =====================================================
+
+router.post(
+    "/",
+    verificarToken,
+    verificarPermiso("crear_productos"),
+    validarProducto,
+    crearProducto
+);
+
+// =====================================================
+// 🔒 PUT - Actualizar producto (protegido)
+// =====================================================
+
+router.put(
+    "/:id",
+    verificarToken,
+    verificarPermiso("editar_productos"),
+    validarActualizacionProducto,
+    actualizarProducto
+);
+
+// =====================================================
+// 🔒 DELETE - Eliminar producto (protegido)
+// =====================================================
+
+router.delete(
+    "/:id",
+    verificarToken,
+    verificarPermiso("eliminar_productos"),
+    validarIdProducto,
+    eliminarProducto
+);
+
+module.exports = router;
+
+            let productos =
+                await Producto.find({
+                    usaLotes: true
+                }).populate("categoria");
+
+            const hoy = new Date();
+
+            // =====================================================
+            // 🔎 SEARCH
+            // =====================================================
+
+            if (search) {
+
+                const texto =
+                    search.toLowerCase();
+
+                productos =
+                    productos.filter(p =>
+
+                        p.nombre?.toLowerCase()
+                            .includes(texto)
+
+                        ||
+
+                        p.marca?.toLowerCase()
+                            .includes(texto)
+
+                        ||
+
+                        p.lote?.toLowerCase()
+                            .includes(texto)
+
+                        ||
+
+                        p.sku?.toLowerCase()
+                            .includes(texto)
+                    );
+            }
+
+            // =====================================================
+            // 🎯 FILTRO ESTADO
+            // =====================================================
+
+            if (estado) {
+
+                productos =
+                    productos.filter(p => {
+
+                        const fecha =
+                            new Date(
+                                p.fechaVencimiento
+                            );
+
+                        // 🔴 VENCIDO
+                        if (estado === "vencido") {
+
+                            return fecha < hoy;
+                        }
+
+                        // ⚫ AGOTADO
+                        if (estado === "agotado") {
+
+                            return p.stock <= 0;
+                        }
+
+                        // 🟢 ACTIVO
+                        if (estado === "activo") {
+
+                            return (
+                                p.stock > 0 &&
+                                fecha >= hoy
+                            );
+                        }
+
+                        return true;
+                    });
+            }
+
+            // =====================================================
+            // 📦 RESPUESTA
+            // =====================================================
+
+            const lotes =
+                productos.map(p => ({
+
+                    id: p._id,
+
+                    producto: p.nombre,
+
+                    marca: p.marca,
+
+                    categoria:
+                        p.categoria?.nombre,
+
+                    lote: p.lote,
+
+                    sku: p.sku,
+
+                    fechaVencimiento:
+                        p.fechaVencimiento,
+
+                    stock: p.stock
+                }));
+
+            res.json(lotes);
+
+        } catch (error) {
+
+            console.log(error);
+
+            res.status(500).json({
+                error: "Error al obtener lotes"
+            });
+        }
+    }
+);
+
+// =====================================================
+// 📦 RESUMEN LOTES
+// =====================================================
+
+router.get(
+    "/lotes/resumen",
+    verificarToken,
+    verificarPermiso("crear_lote"),
+    async (req, res) => {
+
+        try {
+
+            const productos =
+                await Producto.find({
+                    usaLotes: true
+                });
+
+            const totalLotes =
+                productos.length;
+
+            const activos =
+                productos.filter(
+                    p => p.stock > 0
+                ).length;
+
+            const agotados =
+                productos.filter(
+                    p => p.stock <= 0
+                ).length;
+
+            const hoy = new Date();
+
+            const proximosVencer =
+                productos.filter(p => {
+
+                    if (!p.fechaVencimiento)
+                        return false;
+
+                    const fecha =
+                        new Date(
+                            p.fechaVencimiento
+                        );
+
+                    const dias =
+                        Math.ceil(
+                            (fecha - hoy) /
+                            (
+                                1000 *
+                                60 *
+                                60 *
+                                24
+                            )
+                        );
+
+                    return (
+                        dias <= 30 &&
+                        dias >= 0
+                    );
+                }).length;
+
+            res.json({
+
+                totalLotes,
+                activos,
+                agotados,
+                proximosVencer
+            });
+
+        } catch (error) {
+
+            console.log(error);
+
+            res.status(500).json({
+                error:
+                    "Error al obtener resumen de lotes"
+            });
+        }
+    }
+);
+
+// =====================================================
+// 📊 STOCK POR CATEGORÍA
+// =====================================================
+
+router.get(
+    "/stock-por-categoria",
+    verificarToken,
+    verificarPermiso("ver_reportes"),
+    async (req, res) => {
+
+        try {
+
+            const {
+                categoria,
+                estado
+            } = req.query;
+
+            let filtro = {};
+
+            // =====================================================
+            // 📂 FILTRO CATEGORÍA (con sanitización)
+            // =====================================================
+
+            if (
+                categoria &&
+                categoria !== "Todas"
+            ) {
+
+                // 🔒 Sanitizar entrada
+                const categoriaSanitizada = typeof categoria === 'string' 
+                    ? categoria.trim() 
+                    : categoria;
+
+                const categoriaDB =
+                    await Categoria.findOne({
+                        nombre: categoriaSanitizada
+                    });
+
+                if (categoriaDB) {
+
+                    filtro.categoria =
+                        categoriaDB._id;
+                }
+            }
+
+            // =====================================================
+            // 📉 FILTRO STOCK
+            // =====================================================
+
+            if (estado === "critico") {
+
+                filtro.stock = {
+                    $lte: 5
+                };
+
+            } else if (estado === "bajo") {
+
+                filtro.stock = {
+                    $gt: 5,
+                    $lte: 15
+                };
+
+            } else if (estado === "normal") {
+
+                filtro.stock = {
+                    $gt: 15
+                };
+            }
+
+            const productos =
+                await Producto.find(filtro)
+                    .populate("categoria");
+
+            const agrupado = {};
+
+            productos.forEach(producto => {
+
+                const categoriaNombre =
+                    producto.categoria?.nombre ||
+                    "Sin categoría";
+
+                if (!agrupado[categoriaNombre]) {
+
+                    agrupado[categoriaNombre] = 0;
+                }
+
+                agrupado[categoriaNombre] +=
+                    producto.stock;
+            });
+
+            const resultado =
+                Object.keys(agrupado).map(cat => ({
+
+                    _id: cat,
+
+                    totalStock:
+                        agrupado[cat]
+                }));
+
+            res.json(resultado);
+
+        } catch (error) {
+
+            console.log(error);
+
+            res.status(500).json({
+                error:
+                    "Error al obtener stock por categoría"
+            });
+        }
+    }
+);
+
+// =====================================================
+// ➕ CREAR PRODUCTO
+// =====================================================
+
+router.post(
+    "/",
+    verificarToken,
+    verificarPermiso("crear_producto"),
+    validarProducto,
+    crearProducto
+);
+
+// =====================================================
+// ✏️ ACTUALIZAR PRODUCTO
+// =====================================================
+
+router.put(
+    "/:id",
+    verificarToken,
+    validarObjectId,
+    verificarPermiso("editar_producto"),
+    validarProducto,
+    actualizarProducto
+);
+
+// =====================================================
+// ❌ ELIMINAR PRODUCTO
+// =====================================================
+
+router.delete(
+    "/:id",
+    verificarToken,
+    validarObjectId,
+    verificarPermiso("eliminar_producto"),
+    eliminarProducto
+);
+
+// =====================================================
+// 🔥 REPONER STOCK
+// =====================================================
+
+router.post(
+    "/:id/reponer",
+    verificarToken,
+    validarObjectId,
+    verificarPermiso("crear_lote"),
+    async (req, res) => {
+
+        try {
+
+            const { cantidad } =
+                req.body;
+
+            const producto =
+                await Producto.findById(
+                    req.params.id
+                );
+
+            if (!producto) {
+
+                return res.status(404).json({
+                    error:
+                        "Producto no encontrado"
+                });
+            }
+
+            if (
+                !cantidad ||
+                Number(cantidad) <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Cantidad inválida"
+                });
+            }
+
+            // =====================================================
+            // 📦 STOCK ANTERIOR
+            // =====================================================
+
+            const stockAnterior =
+                producto.stock;
+
+            // =====================================================
+            // ➕ NUEVO STOCK
+            // =====================================================
+
+            producto.stock +=
+                Number(cantidad);
+
+            await producto.save();
+
+            // =====================================================
+            // 🔔 NOTIFICACIÓN
+            // =====================================================
+
+            await crearNotificacion(
+
+                "Stock repuesto",
+
+                `Se repuso stock del producto ${producto.nombre}.`,
+
+                "success"
+            );
+
+            // =====================================================
+            // 🚨 MOVIMIENTO GRANDE
+            // =====================================================
+
+            const limiteMovimiento =
+                Number(
+                    producto.movimientoMaximo
+                ) || 50;
+
+            if (
+                Number(cantidad) >=
+                limiteMovimiento
+            ) {
+
+                await enviarCorreo(
+
+                    process.env.EMAIL_TO,
+
+                    "🔥 Reposición grande detectada",
+
+                    `Producto: ${producto.nombre}
+
+Stock anterior: ${stockAnterior}
+
+Cantidad agregada: ${cantidad}
+
+Nuevo stock: ${producto.stock}`
+                );
+            }
+
+            res.json({
+
+                mensaje:
+                    "Stock repuesto correctamente",
+
+                producto
+            });
+
+        } catch (error) {
+
+            console.log(error);
+
+            res.status(500).json({
+                error:
+                    "Error al reponer stock"
+            });
+        }
+    }
+);
+
+// =====================================================
+// ✏️ EDITAR LOTES
+// =====================================================
+
+router.put(
+    "/lotes/:id",
+    verificarToken,
+    validarObjectId,
+    verificarPermiso("crear_lote"),
+    async (req, res) => {
+
+        try {
+
+            const {
+                lote,
+                nombre,
+                sku,
+                stock,
+                fechaVencimiento,
+                observacionLote
+            } = req.body;
+
+            const producto =
+                await Producto.findById(
+                    req.params.id
+                );
+
+            if (!producto) {
+
+                return res.status(404).json({
+                    error:
+                        "Producto no encontrado"
+                });
+            }
+
+            const stockAnterior =
+                producto.stock;
+
+            // =====================================================
+            // ✏️ ACTUALIZAR
+            // =====================================================
+
+            if (lote !== undefined)
+                producto.lote = lote;
+
+            if (nombre !== undefined)
+                producto.nombre = nombre;
+
+            if (sku !== undefined)
+                producto.sku = sku;
+
+            if (stock !== undefined)
+                producto.stock = stock;
+
+            if (
+                fechaVencimiento !== undefined
+            ) {
+
+                producto.fechaVencimiento =
+                    fechaVencimiento;
+            }
+
+            if (
+                observacionLote !== undefined
+            ) {
+
+                producto.observacionLote =
+                    observacionLote;
+            }
+
+            await producto.save();
+
+            // =====================================================
+            // 🔔 NOTIFICACIÓN
+            // =====================================================
+
+            await crearNotificacion(
+
+                "Lote actualizado",
+
+                `El lote ${producto.lote} fue actualizado.`,
+
+                "info"
+            );
+
+            // =====================================================
+            // 📧 EMAIL
+            // =====================================================
+
+            await enviarCorreo(
+
+                process.env.EMAIL_TO,
+
+                "✏️ Lote actualizado",
+
+                `Producto: ${producto.nombre}
+
+Lote: ${producto.lote}
+
+SKU: ${producto.sku}
+
+Stock anterior: ${stockAnterior}
+
+Nuevo stock: ${producto.stock}`
+            );
+
+            res.json({
+
+                mensaje:
+                    "Lote actualizado correctamente",
+
+                producto
+            });
+
+        } catch (error) {
+
+            console.log(error);
+
+            res.status(500).json({
+                error:
+                    "Error al actualizar lote"
+            });
+        }
+    }
+);
+
+// =====================================================
+// ✅ PRODUCTO POR ID
+// =====================================================
+
+router.get(
+    "/:id",
+    verificarToken,
+    validarObjectId,
+    verificarPermiso("ver_productos"),
+    async (req, res) => {
+
+        try {
+
+            const producto =
+                await Producto.findById(
+                    req.params.id
+                );
+
+            if (!producto) {
+
+                return res.status(404).json({
+                    error:
+                        "Producto no encontrado"
+                });
+            }
+
+            res.json(producto);
+
+        } catch (error) {
+
+            console.log(error);
+
+            res.status(500).json({
+                error:
+                    "Error al obtener producto"
+            });
+        }
+    }
+);
+
+module.exports = router;

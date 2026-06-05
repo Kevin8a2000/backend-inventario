@@ -1,20 +1,61 @@
 const jwt = require("jsonwebtoken");
 
 const verificarToken = (req, res, next) => {
-    try {
-        const token = req.header("Authorization");
 
-        if (!token) {
-            return res.status(401).json({ error: "Acceso denegado" });
+    try {
+
+        // =====================================================
+        // 🔐 OBTENER HEADER
+        // =====================================================
+
+        const authHeader =
+            req.header("Authorization");
+
+        if (!authHeader) {
+
+            return res.status(401).json({
+                error: "Acceso denegado"
+            });
         }
 
-        const decoded = jwt.verify(token, "secreto123");
+        // =====================================================
+        // 🔥 EXTRAER TOKEN
+        // =====================================================
+
+        const token =
+            authHeader.split(" ")[1];
+
+        if (!token) {
+
+            return res.status(401).json({
+                error: "Token requerido"
+            });
+        }
+
+        // =====================================================
+        // 🔐 VALIDAR TOKEN
+        // =====================================================
+
+        const decoded =
+            jwt.verify(
+                token,
+                process.env.JWT_SECRET
+            );
 
         req.usuario = decoded;
 
         next();
+
     } catch (error) {
-        res.status(401).json({ error: "Token inválido" });
+
+        // Solo loguear en desarrollo
+        if (process.env.NODE_ENV === 'development') {
+            console.error("🔐 Token Error:", error.message);
+        }
+
+        res.status(401).json({
+            error: "Token inválido"
+        });
     }
 };
 

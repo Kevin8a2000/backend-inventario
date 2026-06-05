@@ -1,9 +1,77 @@
 const express = require("express");
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 
-const { register, login } = require("../controllers/auth.controller");
+const {
+    validarRegistro,
+    validarLogin,
+    validarRecuperarPassword,
+    validarResetPassword
+} = require("../middlewares/validarInputs");
 
-router.post("/register", register);
-router.post("/login", login);
+const {
+    register,
+    login,
+    recuperarPassword,
+    resetPassword
+} = require("../controllers/auth.controller");
+
+// =====================================================
+// 🔒 RATE LIMITER PARA AUTH
+// =====================================================
+
+const limiterAuth = rateLimit({
+    windowMs: 15 * 60 * 1000,  // 15 minutos
+    max: 5,
+    message: {
+        ok: false,
+        error: "Demasiados intentos de autenticación. Espera 15 minutos."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req, res) => {
+        // Skip rate limiting for OPTIONS requests
+        return req.method === 'OPTIONS';
+    }
+});
+
+// =====================================================
+// ✅ LOGIN / REGISTER CON VALIDACIÓN
+// =====================================================
+
+router.post(
+    "/register",
+    limiterAuth,
+    validarRegistro,
+    register
+);
+
+router.post(
+    "/login",
+    limiterAuth,
+    validarLogin,
+    login
+);
+
+// =====================================================
+// 🔥 RECUPERAR PASSWORD
+// =====================================================
+
+router.post(
+    "/recuperar-password",
+    limiterAuth,
+    validarRecuperarPassword,
+    recuperarPassword
+);
+
+// =====================================================
+// 🔥 RESET PASSWORD
+// =====================================================
+
+router.post(
+    "/reset-password/:token",
+    validarResetPassword,
+    resetPassword
+);
 
 module.exports = router;
