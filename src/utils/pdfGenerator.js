@@ -90,35 +90,7 @@ const generarPDF = async (filtros = {}) => {
             };
 
         } else {
-
-            const yearActual =
-                new Date().getFullYear();
-
-            const inicio =
-                new Date(yearActual, 0, 1);
-
-            const fin =
-                new Date(
-
-                    yearActual,
-
-                    11,
-
-                    31,
-
-                    23,
-
-                    59,
-
-                    59
-                );
-
-            query.createdAt = {
-
-                $gte: inicio,
-
-                $lte: fin
-            };
+            // sin restricción de fecha — trae todos los movimientos
         }
 
         // =====================================================
@@ -267,9 +239,18 @@ const generarPDF = async (filtros = {}) => {
 
         if (validos.length === 0) {
 
-            throw new Error(
-                "No hay movimientos para esos filtros"
-            );
+            doc.fontSize(16)
+                .fillColor("#6b7280")
+                .text("No se encontraron movimientos para los filtros seleccionados.", {
+                    align: "center"
+                });
+
+            doc.end();
+
+            return await new Promise((resolve, reject) => {
+                doc.on("end", () => resolve(Buffer.concat(buffers)));
+                doc.on("error", reject);
+            });
         }
 
         // =====================================================
