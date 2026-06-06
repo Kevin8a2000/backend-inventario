@@ -159,6 +159,64 @@ router.get(
 );
 
 // =====================================================
+// ➕ CREAR LOTE
+// =====================================================
+router.post(
+    "/lotes",
+    verificarToken,
+    verificarPermiso("crear_lote"),
+    async (req, res) => {
+        try {
+            const { productoId, lote, sku, stock, fechaVencimiento, observacionLote } = req.body;
+
+            if (!productoId) {
+                return res.status(400).json({ error: "productoId es requerido" });
+            }
+
+            const productoBase = await Producto.findById(productoId);
+            if (!productoBase) {
+                return res.status(404).json({ error: "Producto no encontrado" });
+            }
+
+            const nuevoLote = new Producto({
+                nombre:       productoBase.nombre,
+                descripcion:  productoBase.descripcion,
+                marca:        productoBase.marca,
+                sku:          sku || `${productoBase.sku}-${Date.now()}`,
+                categoria:    productoBase.categoria,
+                precio:       productoBase.precio,
+                stock:        Number(stock) || 0,
+                stockMinimo:  productoBase.stockMinimo,
+                usaLotes:     true,
+                lote: {
+                    codigo:           sanitizarTexto(lote || "S/N"),
+                    fechaEntrada:     new Date(),
+                    usaVencimiento:   !!fechaVencimiento,
+                    fechaVencimiento: fechaVencimiento || null,
+                    observacion:      sanitizarTexto(observacionLote || "")
+                },
+                fechaVencimiento: fechaVencimiento || null,
+                observacionLote:  sanitizarTexto(observacionLote || "")
+            });
+
+            await nuevoLote.save();
+
+            await crearNotificacion(
+                "Nuevo lote creado",
+                `Se creó el lote ${lote || "S/N"} para el producto ${productoBase.nombre}.`,
+                "success"
+            );
+
+            res.status(201).json({ ok: true, mensaje: "Lote creado correctamente", lote: nuevoLote });
+
+        } catch (error) {
+            console.error("Error al crear lote:", error);
+            res.status(500).json({ error: "Error al crear el lote" });
+        }
+    }
+);
+
+// =====================================================
 // 📊 STOCK POR CATEGORÍA
 // =====================================================
 router.get(
