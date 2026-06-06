@@ -449,9 +449,7 @@ Si no solicitaste esta recuperación, ignora este correo.`
         });
 
     } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-            console.error("🔐 Recuperar Password Error:", error.message);
-        }
+        console.error("🔐 Recuperar Password Error:", error.message);
 
         res.status(500).json({
             ok: false,

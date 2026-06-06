@@ -2,7 +2,7 @@ const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.RESEND_FROM || "InvStock La Costa <onboarding@resend.dev>";
+const FROM = process.env.RESEND_FROM || "onboarding@resend.dev";
 
 // =====================================================
 // 🎨 TEMPLATE
@@ -75,31 +75,27 @@ const generarTemplate = (titulo, mensaje, botonTexto = null, botonLink = null) =
 
 const enviarCorreo = async (destinatario, asunto, mensaje, archivoAdjunto = null) => {
 
-    try {
+    const html = generarTemplate("📊 Reporte de Inventario", mensaje);
 
-        const html = generarTemplate("📊 Reporte de Inventario", mensaje);
+    const payload = {
+        from: FROM,
+        to: destinatario,
+        subject: asunto,
+        html
+    };
 
-        const payload = {
-            from: FROM,
-            to: destinatario,
-            subject: asunto,
-            html
-        };
-
-        if (archivoAdjunto) {
-            payload.attachments = [{
-                filename: archivoAdjunto.filename,
-                content: archivoAdjunto.content
-            }];
-        }
-
-        await resend.emails.send(payload);
-
-        console.log(`📧 Correo enviado a ${destinatario}`);
-
-    } catch (error) {
-        console.log("❌ Error correo:", error.message);
+    if (archivoAdjunto) {
+        payload.attachments = [{
+            filename: archivoAdjunto.filename,
+            content: archivoAdjunto.content
+        }];
     }
+
+    const { data, error } = await resend.emails.send(payload);
+
+    if (error) throw new Error(error.message);
+
+    console.log(`📧 Correo enviado a ${destinatario} | id: ${data.id}`);
 };
 
 // =====================================================
@@ -108,36 +104,32 @@ const enviarCorreo = async (destinatario, asunto, mensaje, archivoAdjunto = null
 
 const enviarCorreoRecuperacion = async (destinatario, nombre, token) => {
 
-    try {
+    const link = `${process.env.FRONTEND_URL}/restablecer-password/${token}`;
 
-        const link = `${process.env.FRONTEND_URL}/restablecer-password/${token}`;
+    const mensaje = `
+        Hola ${nombre},<br><br>
+        Recibimos una solicitud para restablecer tu contraseña.<br><br>
+        Presiona el botón para continuar con la recuperación.<br><br>
+        ⚠️ Este enlace expirará en 15 minutos.
+    `;
 
-        const mensaje = `
-            Hola ${nombre},<br><br>
-            Recibimos una solicitud para restablecer tu contraseña.<br><br>
-            Presiona el botón para continuar con la recuperación.<br><br>
-            ⚠️ Este enlace expirará en 15 minutos.
-        `;
+    const html = generarTemplate(
+        "🔐 Recuperar Contraseña",
+        mensaje,
+        "Restablecer Contraseña",
+        link
+    );
 
-        const html = generarTemplate(
-            "🔐 Recuperar Contraseña",
-            mensaje,
-            "Restablecer Contraseña",
-            link
-        );
+    const { data, error } = await resend.emails.send({
+        from: FROM,
+        to: destinatario,
+        subject: "🔐 Recuperación de contraseña",
+        html
+    });
 
-        await resend.emails.send({
-            from: FROM,
-            to: destinatario,
-            subject: "🔐 Recuperación de contraseña",
-            html
-        });
+    if (error) throw new Error(error.message);
 
-        console.log(`📧 Recuperación enviada a ${destinatario}`);
-
-    } catch (error) {
-        console.log("❌ Error recuperación:", error.message);
-    }
+    console.log(`📧 Recuperación enviada a ${destinatario} | id: ${data.id}`);
 };
 
 // =====================================================
@@ -146,29 +138,25 @@ const enviarCorreoRecuperacion = async (destinatario, nombre, token) => {
 
 const enviarCorreoAlertaStock = async (destinatario, productoNombre, stockActual, stockMinimo) => {
 
-    try {
+    const mensaje = `
+        El producto <strong>${productoNombre}</strong> tiene stock bajo.<br><br>
+        <strong>Stock actual:</strong> ${stockActual} unidades<br>
+        <strong>Stock mínimo:</strong> ${stockMinimo} unidades<br><br>
+        Por favor realiza una reposición a la brevedad.
+    `;
 
-        const mensaje = `
-            El producto <strong>${productoNombre}</strong> tiene stock bajo.<br><br>
-            <strong>Stock actual:</strong> ${stockActual} unidades<br>
-            <strong>Stock mínimo:</strong> ${stockMinimo} unidades<br><br>
-            Por favor realiza una reposición a la brevedad.
-        `;
+    const html = generarTemplate("⚠️ Alerta de Stock Bajo", mensaje);
 
-        const html = generarTemplate("⚠️ Alerta de Stock Bajo", mensaje);
+    const { data, error } = await resend.emails.send({
+        from: FROM,
+        to: destinatario,
+        subject: `⚠️ Stock bajo: ${productoNombre}`,
+        html
+    });
 
-        await resend.emails.send({
-            from: FROM,
-            to: destinatario,
-            subject: `⚠️ Stock bajo: ${productoNombre}`,
-            html
-        });
+    if (error) throw new Error(error.message);
 
-        console.log(`📧 Alerta stock enviada a ${destinatario}`);
-
-    } catch (error) {
-        console.log("❌ Error alerta stock:", error.message);
-    }
+    console.log(`📧 Alerta stock enviada a ${destinatario} | id: ${data.id}`);
 };
 
 // =====================================================
@@ -237,14 +225,16 @@ const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
             </html>
         `;
 
-        await resend.emails.send({
+        const { data, error } = await resend.emails.send({
             from: FROM,
             to: destinatario,
             subject: '📦 Reporte Semanal de Inventario — InvStock La Costa',
             html
         });
 
-        console.log(`📧 Reporte semanal enviado a ${destinatario}`);
+        if (error) throw new Error(error.message);
+
+        console.log(`📧 Reporte semanal enviado a ${destinatario} | id: ${data.id}`);
 
     } catch (error) {
         console.log("❌ Error reporte semanal:", error.message);
@@ -257,30 +247,26 @@ const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
 
 const enviarCorreoCambioEmail = async (destinatario, nombre, emailNuevo) => {
 
-    try {
+    const mensaje = `
+        Hola ${nombre},<br><br>
+        Te informamos que el correo electrónico asociado a tu cuenta de
+        <strong>InvStock La Costa</strong> ha sido actualizado.<br><br>
+        <strong>Nuevo correo:</strong> ${emailNuevo}<br><br>
+        Si no realizaste este cambio, contacta al administrador inmediatamente.
+    `;
 
-        const mensaje = `
-            Hola ${nombre},<br><br>
-            Te informamos que el correo electrónico asociado a tu cuenta de
-            <strong>InvStock La Costa</strong> ha sido actualizado.<br><br>
-            <strong>Nuevo correo:</strong> ${emailNuevo}<br><br>
-            Si no realizaste este cambio, contacta al administrador inmediatamente.
-        `;
+    const html = generarTemplate("📧 Cambio de Correo Electrónico", mensaje);
 
-        const html = generarTemplate("📧 Cambio de Correo Electrónico", mensaje);
+    const { data, error } = await resend.emails.send({
+        from: FROM,
+        to: destinatario,
+        subject: "📧 Tu correo electrónico ha sido actualizado",
+        html
+    });
 
-        await resend.emails.send({
-            from: FROM,
-            to: destinatario,
-            subject: "📧 Tu correo electrónico ha sido actualizado",
-            html
-        });
+    if (error) throw new Error(error.message);
 
-        console.log(`📧 Notificación de cambio de correo enviada a ${destinatario}`);
-
-    } catch (error) {
-        console.log("❌ Error notificación cambio correo:", error.message);
-    }
+    console.log(`📧 Cambio de correo enviado a ${destinatario} | id: ${data.id}`);
 };
 
 // =====================================================
