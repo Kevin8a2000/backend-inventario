@@ -14,6 +14,7 @@ const {
     login,
     recuperarPassword,
     resetPassword,
+    changePassword,
     changeEmail
 } = require("../controllers/auth.controller");
 
@@ -87,6 +88,16 @@ router.post(
     "/reset-password/:token",
     validarResetPassword,
     resetPassword
+);
+
+// =====================================================
+// 🔑 CAMBIO DE CONTRASEÑA
+// =====================================================
+
+router.put(
+    "/change-password",
+    verificarToken,
+    changePassword
 );
 
 // =====================================================

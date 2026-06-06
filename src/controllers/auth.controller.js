@@ -528,6 +528,66 @@ const resetPassword = async (req, res) => {
 };
 
 // =====================================================
+// 🔑 CAMBIO DE CONTRASEÑA
+// =====================================================
+
+const changePassword = async (req, res) => {
+    try {
+        const { passwordActual, passwordNueva } = req.body;
+
+        if (!passwordActual || !passwordNueva) {
+            return res.status(400).json({
+                ok: false,
+                error: "Ambos campos son requeridos"
+            });
+        }
+
+        if (typeof passwordActual !== "string" || typeof passwordNueva !== "string") {
+            return res.status(400).json({ ok: false, error: "Datos inválidos" });
+        }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{12,}$/;
+        if (!passwordRegex.test(passwordNueva)) {
+            return res.status(400).json({
+                ok: false,
+                error: "La contraseña debe tener mínimo 12 caracteres, una mayúscula, un número y un carácter especial (!@#$%^&*)"
+            });
+        }
+
+        const usuario = await Usuario.findById(req.usuario.id).select("+password");
+        if (!usuario) {
+            return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        }
+
+        const esValida = await bcrypt.compare(passwordActual, usuario.password);
+        if (!esValida) {
+            return res.status(400).json({
+                ok: false,
+                error: "Contraseña actual incorrecta"
+            });
+        }
+
+        usuario.password = await bcrypt.hash(passwordNueva, 10);
+        await usuario.save();
+
+        res.json({
+            ok: true,
+            mensaje: "Contraseña actualizada correctamente"
+        });
+
+    } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+            console.error("🔑 Change Password Error:", error.message);
+        }
+
+        res.status(500).json({
+            ok: false,
+            error: "Error al actualizar la contraseña"
+        });
+    }
+};
+
+// =====================================================
 // 📧 CAMBIO DE EMAIL
 // =====================================================
 
@@ -603,5 +663,6 @@ module.exports = {
     login,
     recuperarPassword,
     resetPassword,
+    changePassword,
     changeEmail
 };
