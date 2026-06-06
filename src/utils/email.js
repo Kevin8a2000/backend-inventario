@@ -1,253 +1,104 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const FROM = process.env.RESEND_FROM || "InvStock La Costa <onboarding@resend.dev>";
 
 // =====================================================
-// 🚀 TRANSPORTER
+// 🎨 TEMPLATE
 // =====================================================
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,           // STARTTLS — más compatible en cloud que puerto 465/SSL
-    family: 4,               // forzar IPv4 — evita ENETUNREACH en Render (sin ruta IPv6 a Google)
-    connectionTimeout: 30000, // Aumentado a 30s
-    socketTimeout: 30000,     // Aumentado a 30s
-    greetingTimeout: 30000,   // Aumentado a 30s
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
-
-// =====================================================
-// 🎨 TEMPLATE EXACTO ESTILO ORIGINAL
-// =====================================================
-
-const generarTemplate = (
-
-    titulo,
-    mensaje,
-    botonTexto = null,
-    botonLink = null
-
-) => {
+const generarTemplate = (titulo, mensaje, botonTexto = null, botonLink = null) => {
 
     return `
-
     <!DOCTYPE html>
-
     <html lang="es">
-
     <head>
-
         <meta charset="UTF-8" />
-
         <title>${titulo}</title>
-
     </head>
+    <body style="margin:0;padding:0;background:#03113a;font-family:Arial,sans-serif;">
+        <div style="width:100%;background:#03113a;padding:40px 0;">
+            <div style="width:100%;max-width:1600px;margin:auto;text-align:center;">
 
-    <body style="
-        margin:0;
-        padding:0;
-        background:#03113a;
-        font-family:Arial,sans-serif;
-    ">
-
-        <div style="
-            width:100%;
-            background:#03113a;
-            padding:40px 0;
-        ">
-
-            <div style="
-                width:100%;
-                max-width:1600px;
-                margin:auto;
-                text-align:center;
-            ">
-
-                <!-- LOGO GRANDE FONDO -->
-                <div style="
-                    margin-bottom:30px;
-                ">
-
-                    <img
-                        src='https://i.imgur.com/iQPOUXh.jpeg'
-                        width='420'
-                        style='
-                            opacity:0.13;
-                            display:block;
-                            margin:auto;
-                        '
-                    />
-
+                <div style="margin-bottom:30px;">
+                    <img src='https://i.imgur.com/iQPOUXh.jpeg' width='420'
+                        style='opacity:0.13;display:block;margin:auto;' />
                 </div>
 
-                <!-- TITULO -->
-                <div style="
-                    margin-top:10px;
-                ">
-
-                    <h1 style="
-                        color:#38bdf8;
-                        font-size:28px;
-                        margin:0;
-                        font-weight:bold;
-                    ">
+                <div style="margin-top:10px;">
+                    <h1 style="color:#38bdf8;font-size:28px;margin:0;font-weight:bold;">
                         ${titulo}
                     </h1>
-
                 </div>
 
-                <!-- MENSAJE -->
-                <div style="
-                    margin-top:22px;
-                    margin-bottom:30px;
-                ">
-
-                    <p style="
-                        color:#ffffff;
-                        font-size:14px;
-                        margin:0;
-                        font-weight:500;
-                    ">
+                <div style="margin-top:22px;margin-bottom:30px;">
+                    <p style="color:#ffffff;font-size:14px;margin:0;font-weight:500;">
                         ${mensaje}
                     </p>
-
                 </div>
 
-                ${
-                    botonTexto && botonLink
-                    ?
-                    `
-                    <div style="
-                        margin-top:25px;
-                    ">
+                ${botonTexto && botonLink ? `
+                <div style="margin-top:25px;">
+                    <a href="${botonLink}" style="background:#38bdf8;color:white;text-decoration:none;
+                        padding:14px 28px;border-radius:10px;display:inline-block;
+                        font-size:15px;font-weight:bold;">
+                        ${botonTexto}
+                    </a>
+                </div>
+                ` : ""}
 
-                        <a href="${botonLink}"
-
-                            style="
-                                background:#38bdf8;
-                                color:white;
-                                text-decoration:none;
-                                padding:14px 28px;
-                                border-radius:10px;
-                                display:inline-block;
-                                font-size:15px;
-                                font-weight:bold;
-                            "
-                        >
-                            ${botonTexto}
-                        </a>
-
-                    </div>
-                    `
-                    :
-                    ""
-                }
-
-                <!-- CARD INFERIOR -->
-                <div style="
-                    width:95%;
-                    margin:auto;
-                    margin-top:45px;
-                    background:#202c46;
-                    border-radius:12px;
-                    padding:28px 20px;
-                    box-sizing:border-box;
-                ">
-
-                    <p style="
-                        color:white;
-                        font-size:15px;
-                        margin:0;
-                        margin-bottom:18px;
-                        font-weight:bold;
-                    ">
+                <div style="width:95%;margin:auto;margin-top:45px;background:#202c46;
+                    border-radius:12px;padding:28px 20px;box-sizing:border-box;">
+                    <p style="color:white;font-size:15px;margin:0;margin-bottom:18px;font-weight:bold;">
                         📅 Fecha: ${new Date().toLocaleString()}
                     </p>
-
-                    <p style="
-                        color:white;
-                        font-size:15px;
-                        margin:0;
-                        font-weight:bold;
-                    ">
+                    <p style="color:white;font-size:15px;margin:0;font-weight:bold;">
                         📦 Sistema: InvStock La Costa
                     </p>
-
                 </div>
 
-                <!-- FOOTER -->
-                <div style="
-                    margin-top:28px;
-                    color:#cbd5e1;
-                    font-size:12px;
-                ">
-
+                <div style="margin-top:28px;color:#cbd5e1;font-size:12px;">
                     Este es un correo automático del sistema
-
                 </div>
 
             </div>
-
         </div>
-
     </body>
-
     </html>
     `;
 };
 
 // =====================================================
-// 📧 ENVIAR CORREO
+// 📧 ENVIAR CORREO GENÉRICO
 // =====================================================
 
-const enviarCorreo = async (
-
-    destinatario,
-    asunto,
-    mensaje,
-    archivoAdjunto = null
-
-) => {
+const enviarCorreo = async (destinatario, asunto, mensaje, archivoAdjunto = null) => {
 
     try {
 
-        const html = generarTemplate(
+        const html = generarTemplate("📊 Reporte de Inventario", mensaje);
 
-            "📊 Reporte de Inventario",
-
-            mensaje
-        );
-
-        const mailOptions = {
-
-            from: process.env.EMAIL_USER,
-
+        const payload = {
+            from: FROM,
             to: destinatario,
-
             subject: asunto,
-
-            html,
-
-            attachments:
-                archivoAdjunto
-                ? [archivoAdjunto]
-                : []
+            html
         };
 
-        await transporter.sendMail(mailOptions);
+        if (archivoAdjunto) {
+            payload.attachments = [{
+                filename: archivoAdjunto.filename,
+                content: archivoAdjunto.content
+            }];
+        }
 
-        console.log(
-            `📧 Correo enviado a ${destinatario}`
-        );
+        await resend.emails.send(payload);
+
+        console.log(`📧 Correo enviado a ${destinatario}`);
 
     } catch (error) {
-
-        console.log(
-            "❌ Error correo:",
-            error.message
-        );
+        console.log("❌ Error correo:", error.message);
     }
 };
 
@@ -255,64 +106,37 @@ const enviarCorreo = async (
 // 🔐 RECUPERACIÓN PASSWORD
 // =====================================================
 
-const enviarCorreoRecuperacion = async (
-
-    destinatario,
-    nombre,
-    token
-
-) => {
+const enviarCorreoRecuperacion = async (destinatario, nombre, token) => {
 
     try {
 
-        const link =
-            `${process.env.FRONTEND_URL}/restablecer-password/${token}`;
+        const link = `${process.env.FRONTEND_URL}/restablecer-password/${token}`;
 
         const mensaje = `
-
             Hola ${nombre},<br><br>
-
             Recibimos una solicitud para restablecer tu contraseña.<br><br>
-
             Presiona el botón para continuar con la recuperación.<br><br>
-
             ⚠️ Este enlace expirará en 15 minutos.
         `;
 
         const html = generarTemplate(
-
             "🔐 Recuperar Contraseña",
-
             mensaje,
-
             "Restablecer Contraseña",
-
             link
         );
 
-        const mailOptions = {
-
-            from: process.env.EMAIL_USER,
-
+        await resend.emails.send({
+            from: FROM,
             to: destinatario,
-
             subject: "🔐 Recuperación de contraseña",
-
             html
-        };
+        });
 
-        await transporter.sendMail(mailOptions);
-
-        console.log(
-            `📧 Recuperación enviada a ${destinatario}`
-        );
+        console.log(`📧 Recuperación enviada a ${destinatario}`);
 
     } catch (error) {
-
-        console.log(
-            "❌ Error recuperación:",
-            error.message
-        );
+        console.log("❌ Error recuperación:", error.message);
     }
 };
 
@@ -320,14 +144,7 @@ const enviarCorreoRecuperacion = async (
 // ⚠️ ALERTA DE STOCK BAJO
 // =====================================================
 
-const enviarCorreoAlertaStock = async (
-
-    destinatario,
-    productoNombre,
-    stockActual,
-    stockMinimo
-
-) => {
+const enviarCorreoAlertaStock = async (destinatario, productoNombre, stockActual, stockMinimo) => {
 
     try {
 
@@ -338,34 +155,19 @@ const enviarCorreoAlertaStock = async (
             Por favor realiza una reposición a la brevedad.
         `;
 
-        const html = generarTemplate(
+        const html = generarTemplate("⚠️ Alerta de Stock Bajo", mensaje);
 
-            "⚠️ Alerta de Stock Bajo",
-
-            mensaje
-        );
-
-        await transporter.sendMail({
-
-            from: process.env.EMAIL_USER,
-
+        await resend.emails.send({
+            from: FROM,
             to: destinatario,
-
             subject: `⚠️ Stock bajo: ${productoNombre}`,
-
             html
         });
 
-        console.log(
-            `📧 Alerta stock enviada a ${destinatario}`
-        );
+        console.log(`📧 Alerta stock enviada a ${destinatario}`);
 
     } catch (error) {
-
-        console.log(
-            "❌ Error alerta stock:",
-            error.message
-        );
+        console.log("❌ Error alerta stock:", error.message);
     }
 };
 
@@ -373,13 +175,7 @@ const enviarCorreoAlertaStock = async (
 // 📦 REPORTE SEMANAL DE INVENTARIO
 // =====================================================
 
-const enviarCorreoReporteSemanal = async (
-
-    destinatario,
-    nombre,
-    productos
-
-) => {
+const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
 
     try {
 
@@ -388,7 +184,8 @@ const enviarCorreoReporteSemanal = async (
                 <td style="padding:8px;border:1px solid #334155;color:#ffffff;">${p.nombre}</td>
                 <td style="padding:8px;border:1px solid #334155;color:#ffffff;text-align:center;">${p.stock}</td>
                 <td style="padding:8px;border:1px solid #334155;color:#ffffff;text-align:center;">${p.stockMinimo}</td>
-                <td style="padding:8px;border:1px solid #334155;text-align:center;color:${p.stock <= p.stockMinimo ? '#f87171' : '#4ade80'};">
+                <td style="padding:8px;border:1px solid #334155;text-align:center;
+                    color:${p.stock <= p.stockMinimo ? '#f87171' : '#4ade80'};">
                     ${p.stock <= p.stockMinimo ? '⚠️ BAJO' : '✅ OK'}
                 </td>
             </tr>
@@ -440,27 +237,17 @@ const enviarCorreoReporteSemanal = async (
             </html>
         `;
 
-        await transporter.sendMail({
-
-            from: process.env.EMAIL_USER,
-
+        await resend.emails.send({
+            from: FROM,
             to: destinatario,
-
             subject: '📦 Reporte Semanal de Inventario — InvStock La Costa',
-
             html
         });
 
-        console.log(
-            `📧 Reporte semanal enviado a ${destinatario}`
-        );
+        console.log(`📧 Reporte semanal enviado a ${destinatario}`);
 
     } catch (error) {
-
-        console.log(
-            "❌ Error reporte semanal:",
-            error.message
-        );
+        console.log("❌ Error reporte semanal:", error.message);
     }
 };
 
@@ -468,13 +255,7 @@ const enviarCorreoReporteSemanal = async (
 // 📧 CAMBIO DE CORREO ELECTRÓNICO
 // =====================================================
 
-const enviarCorreoCambioEmail = async (
-
-    destinatario,
-    nombre,
-    emailNuevo
-
-) => {
+const enviarCorreoCambioEmail = async (destinatario, nombre, emailNuevo) => {
 
     try {
 
@@ -486,36 +267,19 @@ const enviarCorreoCambioEmail = async (
             Si no realizaste este cambio, contacta al administrador inmediatamente.
         `;
 
-        const html = generarTemplate(
+        const html = generarTemplate("📧 Cambio de Correo Electrónico", mensaje);
 
-            "📧 Cambio de Correo Electrónico",
-
-            mensaje
-        );
-
-        const mailOptions = {
-
-            from: process.env.EMAIL_USER,
-
+        await resend.emails.send({
+            from: FROM,
             to: destinatario,
-
             subject: "📧 Tu correo electrónico ha sido actualizado",
-
             html
-        };
+        });
 
-        await transporter.sendMail(mailOptions);
-
-        console.log(
-            `📧 Notificación de cambio de correo enviada a ${destinatario}`
-        );
+        console.log(`📧 Notificación de cambio de correo enviada a ${destinatario}`);
 
     } catch (error) {
-
-        console.log(
-            "❌ Error notificación cambio correo:",
-            error.message
-        );
+        console.log("❌ Error notificación cambio correo:", error.message);
     }
 };
 
@@ -524,14 +288,9 @@ const enviarCorreoCambioEmail = async (
 // =====================================================
 
 module.exports = {
-
     enviarCorreo,
-
     enviarCorreoRecuperacion,
-
     enviarCorreoCambioEmail,
-
     enviarCorreoAlertaStock,
-
     enviarCorreoReporteSemanal
 };
