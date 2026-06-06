@@ -10,6 +10,35 @@ const verificarPermiso =
 require("../middlewares/verificarPermiso");
 
 // =====================================================
+// 🔒 MIDDLEWARE: SOLO ADMIN
+// =====================================================
+
+const soloAdmin = (req, res, next) => {
+    if (!req.usuario || req.usuario.rol !== "admin") {
+        return res.status(403).json({
+            ok: false,
+            error: "Acceso restringido a administradores"
+        });
+    }
+    next();
+};
+
+// =====================================================
+// ✅ PERMISOS VÁLIDOS
+// =====================================================
+
+const permisosValidos = [
+    "ver_productos",
+    "crear_producto",
+    "editar_producto",
+    "eliminar_producto",
+    "ver_reportes",
+    "gestionar_usuarios",
+    "crear_lote",
+    "editar_lote"
+];
+
+// =====================================================
 // 🔥 LISTA GLOBAL DE PERMISOS
 // =====================================================
 
@@ -124,12 +153,6 @@ router.put("/usuario", verificarToken, verificarPermiso("gestionar_usuarios"), a
         const { email, permisos } = req.body;
         if (!email) return res.status(400).json({ error: "Email requerido" });
 
-        const permisosValidos = [
-            "ver_productos", "crear_producto", "editar_producto",
-            "eliminar_producto", "ver_reportes", "gestionar_usuarios",
-            "crear_lote", "editar_lote"
-        ];
-
         const permisosLimpios = (permisos || []).filter(p =>
             typeof p === "string" && permisosValidos.includes(p)
         );
@@ -145,6 +168,83 @@ router.put("/usuario", verificarToken, verificarPermiso("gestionar_usuarios"), a
         res.json({ mensaje: "Permisos actualizados", usuario });
     } catch (error) {
         res.status(500).json({ error: "Error al actualizar permisos" });
+    }
+});
+
+// =====================================================
+// 👑 GET /permissions — solo admin
+// =====================================================
+
+router.get("/permissions", verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ ok: false, error: "Email requerido" });
+        }
+
+        const usuario = await Usuario.findOne({
+            email: email.trim().toLowerCase()
+        }).select("nombre email rol permisos");
+
+        if (!usuario) {
+            return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        }
+
+        res.json({
+            ok: true,
+            nombre: usuario.nombre,
+            email: usuario.email,
+            rol: usuario.rol,
+            permisos: usuario.permisos || []
+        });
+
+    } catch (error) {
+        res.status(500).json({ ok: false, error: "Error al obtener permisos" });
+    }
+});
+
+// =====================================================
+// 👑 PUT /permissions — solo admin
+// =====================================================
+
+router.put("/permissions", verificarToken, soloAdmin, async (req, res) => {
+    try {
+        const { email, permisos } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ ok: false, error: "Email requerido" });
+        }
+        if (!Array.isArray(permisos)) {
+            return res.status(400).json({ ok: false, error: "permisos debe ser un array" });
+        }
+
+        const permisosLimpios = permisos.filter(p =>
+            typeof p === "string" && permisosValidos.includes(p)
+        );
+
+        const usuario = await Usuario.findOneAndUpdate(
+            { email: email.trim().toLowerCase() },
+            { $set: { permisos: permisosLimpios } },
+            { new: true }
+        ).select("nombre email rol permisos");
+
+        if (!usuario) {
+            return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        }
+
+        res.json({
+            ok: true,
+            mensaje: "Permisos actualizados",
+            usuario: {
+                nombre: usuario.nombre,
+                email: usuario.email,
+                rol: usuario.rol,
+                permisos: usuario.permisos
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ ok: false, error: "Error al actualizar permisos" });
     }
 });
 
