@@ -160,7 +160,7 @@ cron.schedule("0 8 * * 1", async () => {
         console.log("📦 Enviando reporte semanal de inventario...");
 
         const usuarios = await Usuario.find({
-            "preferencias.reportes": true
+            $or: [{ "preferencias.reportes": true }, { "preferencias": { $exists: false } }]
         }).select("email nombre");
 
         const productos = await Producto.find()

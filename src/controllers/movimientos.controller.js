@@ -86,12 +86,13 @@ const crearMovimiento = async (req, res) => {
                 true
             );
 
-            // 📧 Fire-and-forget — no bloquea la respuesta HTTP
-            enviarCorreo(
-                process.env.EMAIL_TO,
-                "🚨 Producto sin stock",
-                `El producto ${productoDB.nombre} se ha quedado sin stock`
-            ).catch(err => logger.error("Error al enviar correo stock agotado", err));
+            // 📧 Fire-and-forget — envía a usuarios con preferencias.email activo
+            Usuario.find({ $or: [{ "preferencias.email": true }, { "preferencias": { $exists: false } }] }).select("email").then(usuarios => {
+                usuarios.forEach(u => {
+                    enviarCorreoAlertaStock(u.email, productoDB.nombre, productoDB.stock, productoDB.stockMinimo)
+                        .catch(err => logger.error("Error al enviar correo stock agotado", err));
+                });
+            }).catch(err => logger.error("Error al buscar usuarios para alerta stock agotado", err));
         }
 
         // =====================================================
@@ -118,7 +119,7 @@ const crearMovimiento = async (req, res) => {
             );
 
             // 📧 Fire-and-forget — envía a usuarios con preferencias.email activo
-            Usuario.find({ "preferencias.email": true }).select("email").then(usuarios => {
+            Usuario.find({ $or: [{ "preferencias.email": true }, { "preferencias": { $exists: false } }] }).select("email").then(usuarios => {
                 usuarios.forEach(u => {
                     enviarCorreoAlertaStock(u.email, productoDB.nombre, productoDB.stock, productoDB.stockMinimo)
                         .catch(err => logger.error("Error al enviar correo stock bajo", err));
@@ -156,12 +157,6 @@ const crearMovimiento = async (req, res) => {
                     true
                 );
 
-                // 📧 Fire-and-forget
-                enviarCorreo(
-                    process.env.EMAIL_TO,
-                    "🚀 Abastecimiento grande registrado",
-                    `Se registró abastecimiento de ${cantidad} unidades de ${productoDB.nombre}\n\n📦 Stock nuevo: ${productoDB.stock}`
-                ).catch(err => logger.error("Error al enviar correo abastecimiento grande", err));
 
             } else if (es_movimiento_critico) {
 
@@ -176,12 +171,6 @@ const crearMovimiento = async (req, res) => {
                     true
                 );
 
-                // 📧 Fire-and-forget
-                enviarCorreo(
-                    process.env.EMAIL_TO,
-                    "🚨 Movimiento crítico detectado",
-                    `Se registró ${tipoTexto} crítica de ${cantidad} unidades de ${productoDB.nombre}\n\n📦 Stock actual: ${productoDB.stock}`
-                ).catch(err => logger.error("Error al enviar correo movimiento crítico", err));
 
             } else if (es_movimiento_grande) {
 
@@ -196,12 +185,6 @@ const crearMovimiento = async (req, res) => {
                     false
                 );
 
-                // 📧 Fire-and-forget
-                enviarCorreo(
-                    process.env.EMAIL_TO,
-                    "⚠️ Movimiento grande",
-                    `Se registró ${tipoTexto} de ${cantidad} unidades de ${productoDB.nombre}\n\n📦 Stock: ${productoDB.stock}`
-                ).catch(err => logger.error("Error al enviar correo movimiento grande", err));
             }
         }
 
