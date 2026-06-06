@@ -172,6 +172,11 @@ app.use(
     reportesRoutes
 );
 
+app.use(
+    "/api/reportes",
+    reportesRoutes
+);
+
 // 👥 USUARIOS
 app.use(
     "/api/usuarios",

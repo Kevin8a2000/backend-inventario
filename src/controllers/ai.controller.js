@@ -4,6 +4,122 @@ require("../models/Producto");
 const Movimiento =
 require("../models/Movimiento");
 
+const Sugerencia =
+require("../models/Sugerencia");
+
+// =====================================================
+// 💾 SUGERENCIAS PERSISTENTES
+// =====================================================
+
+async function generarSugerenciasAutomaticas(usuarioId) {
+
+    const nuevas = [];
+
+    // 1. Productos con stock crítico (bajo el mínimo)
+    const criticos = await Producto.find({
+        $expr: { $lte: ["$stock", "$stockMinimo"] }
+    });
+
+    for (const p of criticos) {
+        const yaExiste = await Sugerencia.findOne({
+            usuario: usuarioId,
+            titulo: { $regex: p.nombre, $options: "i" },
+            tipo: "alerta",
+            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        });
+        if (!yaExiste) {
+            nuevas.push({
+                usuario: usuarioId,
+                tipo: "alerta",
+                icono: "⚠️",
+                titulo: `Stock Crítico: ${p.nombre}`,
+                descripcion: `Solo quedan ${p.stock} unidades. El mínimo configurado es ${p.stockMinimo}.`
+            });
+        }
+    }
+
+    // 2. Productos sin movimientos en los últimos 30 días
+    const hace30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const productosConMovimiento = await Movimiento.distinct("producto", {
+        createdAt: { $gte: hace30dias }
+    });
+    const sinMovimiento = await Producto.find({
+        _id: { $nin: productosConMovimiento },
+        stock: { $gt: 0 }
+    }).limit(3);
+
+    for (const p of sinMovimiento) {
+        nuevas.push({
+            usuario: usuarioId,
+            tipo: "sugerencia",
+            icono: "📦",
+            titulo: `Stock estancado: ${p.nombre}`,
+            descripcion: `Este producto lleva más de 30 días sin movimientos y tiene ${p.stock} unidades en stock.`
+        });
+    }
+
+    // 3. Recordatorio de reporte si es lunes
+    if (new Date().getDay() === 1) {
+        nuevas.push({
+            usuario: usuarioId,
+            tipo: "recordatorio",
+            icono: "📅",
+            titulo: "Reporte semanal disponible",
+            descripcion: "Revisa el resumen de movimientos de la semana en la sección de Reportes."
+        });
+    }
+
+    if (nuevas.length > 0) {
+        await Sugerencia.insertMany(nuevas);
+    }
+}
+
+const getSugerencias = async (req, res) => {
+    try {
+        await generarSugerenciasAutomaticas(req.usuario.id);
+
+        const sugerencias = await Sugerencia.find({ usuario: req.usuario.id })
+            .sort({ createdAt: -1 })
+            .limit(20);
+
+        res.json(sugerencias);
+
+    } catch (err) {
+        console.error("ai/suggestions error:", err);
+        res.status(500).json({ error: "Error al obtener sugerencias" });
+    }
+};
+
+const marcarLeida = async (req, res) => {
+    try {
+        await Sugerencia.findOneAndUpdate(
+            { _id: req.params.id, usuario: req.usuario.id },
+            { leida: true }
+        );
+        res.json({ ok: true });
+
+    } catch (err) {
+        res.status(500).json({ error: "Error al marcar sugerencia" });
+    }
+};
+
+const marcarTodasLeidas = async (req, res) => {
+    try {
+        await Sugerencia.updateMany(
+            { usuario: req.usuario.id },
+            { leida: true }
+        );
+        res.json({ ok: true });
+
+    } catch (err) {
+        res.status(500).json({ error: "Error al marcar todas como leídas" });
+    }
+};
+
+exports.getSugerencias = getSugerencias;
+exports.marcarLeida = marcarLeida;
+exports.marcarTodasLeidas = marcarTodasLeidas;
+
 // =====================================================
 // 🤖 IA INVENTARIO PROFESIONAL
 // =====================================================

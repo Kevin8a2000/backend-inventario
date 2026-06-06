@@ -15,12 +15,29 @@ const {
 } = require("../controllers/reportes.controller");
 
 // =====================================================
-// 📄 GENERAR REPORTE PDF
+// 📄 GENERAR REPORTE PDF — ruta legacy
 // =====================================================
 
 router.post(
 
     "/",
+
+    verificarToken,
+
+    verificarPermiso(
+        "ver_reportes"
+    ),
+
+    generarReportePDF
+);
+
+// =====================================================
+// 📄 GENERAR REPORTE PDF — ruta frontend
+// =====================================================
+
+router.post(
+
+    "/pdf",
 
     verificarToken,
 

@@ -11,38 +11,7 @@ const generarReportePDF = async (req, res) => {
 
     try {
 
-        // =====================================================
-        // 🔥 RECIBIR FILTROS DESDE BODY
-        // =====================================================
-
-        const filtros = {
-
-            fechaInicio:
-                req.body.fechaInicio,
-
-            fechaFin:
-                req.body.fechaFin,
-
-            tipo:
-                req.body.tipo,
-
-            categoria:
-                req.body.categoria,
-
-            producto:
-                req.body.producto,
-
-            orden:
-                req.body.orden,
-
-            // 📧 EMAIL OPCIONAL
-            email:
-                req.body.email,
-
-            // 🔥 SWITCH EMAIL
-            enviarPorCorreo:
-                req.body.enviarCorreo === true
-        };
+        const { email, ...filtros } = req.body;
 
         // =====================================================
         // ✅ VALIDAR FECHAS (si se proporcionan)
@@ -57,99 +26,45 @@ const generarReportePDF = async (req, res) => {
             }
         }
 
-        console.log(
-            "📄 FILTROS REPORTE:",
-            filtros
-        );
+        console.log("📄 FILTROS REPORTE:", filtros);
 
         // =====================================================
         // 🔥 GENERAR PDF
         // =====================================================
 
-        const pdfBuffer =
-            await generarPDF(filtros);
+        const pdfBuffer = await generarPDF(filtros);
 
         // =====================================================
-        // 📧 ENVIAR CORREO
+        // 📧 ENVIAR CORREO (si viene email)
         // =====================================================
 
-        if (filtros.enviarPorCorreo) {
-
-            // 🔥 SI NO ENVÍAN EMAIL
-            // USA EMAIL_TO AUTOMÁTICO
-
-            const correoDestino =
-                filtros.email ||
-                process.env.EMAIL_TO;
-
-            if (!correoDestino) {
-
-                return res.status(400).json({
-
-                    ok: false,
-
-                    mensaje:
-                        "No hay correo configurado"
-                });
-            }
-
-            await enviarCorreo(
-
-                correoDestino,
-
+        if (email) {
+            enviarCorreo(
+                email,
                 "📊 Reporte de Inventario",
-
                 "Adjunto encontrarás el reporte PDF generado.",
-
                 {
-                    filename: "reporte.pdf",
-
+                    filename: `reporte-invenstock-${new Date().toISOString().split("T")[0]}.pdf`,
                     content: pdfBuffer
                 }
-            );
-
-            // =====================================================
-            // ✅ RESPUESTA SI ENVÍA CORREO
-            // =====================================================
-
-            return res.status(200).json({
-
-                ok: true,
-
-                mensaje:
-                    "Reporte enviado correctamente al correo",
-
-                enviadoCorreo: true
-            });
+            ).catch(err => console.error("❌ Error enviando reporte por correo:", err.message));
         }
 
         // =====================================================
-        // ✅ RESPUESTA SI SOLO GENERA PDF
+        // ✅ DEVOLVER PDF PARA DESCARGA
         // =====================================================
 
-        return res.status(200).json({
-
-            ok: true,
-
-            mensaje:
-                "PDF generado correctamente",
-
-            enviadoCorreo: false
-        });
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "attachment; filename=reporte-invenstock.pdf");
+        return res.send(pdfBuffer);
 
     } catch (error) {
 
-        console.log(
-            "❌ ERROR CONTROLLER:",
-            error
-        );
+        console.log("❌ ERROR CONTROLLER:", error);
 
-        res.status(500).json({
-
+        res.status(400).json({
             ok: false,
-
-            error:
-                "Error generando reporte"
+            error: error.message || "Error generando reporte"
         });
     }
 };
