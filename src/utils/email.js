@@ -317,6 +317,61 @@ const enviarCorreoRecuperacion = async (
 };
 
 // =====================================================
+// 📧 CAMBIO DE CORREO ELECTRÓNICO
+// =====================================================
+
+const enviarCorreoCambioEmail = async (
+
+    destinatario,
+    nombre,
+    emailNuevo
+
+) => {
+
+    try {
+
+        const mensaje = `
+            Hola ${nombre},<br><br>
+            Te informamos que el correo electrónico asociado a tu cuenta de
+            <strong>InvStock La Costa</strong> ha sido actualizado.<br><br>
+            <strong>Nuevo correo:</strong> ${emailNuevo}<br><br>
+            Si no realizaste este cambio, contacta al administrador inmediatamente.
+        `;
+
+        const html = generarTemplate(
+
+            "📧 Cambio de Correo Electrónico",
+
+            mensaje
+        );
+
+        const mailOptions = {
+
+            from: process.env.EMAIL_USER,
+
+            to: destinatario,
+
+            subject: "📧 Tu correo electrónico ha sido actualizado",
+
+            html
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        console.log(
+            `📧 Notificación de cambio de correo enviada a ${destinatario}`
+        );
+
+    } catch (error) {
+
+        console.log(
+            "❌ Error notificación cambio correo:",
+            error.message
+        );
+    }
+};
+
+// =====================================================
 // 🚀 EXPORTS
 // =====================================================
 
@@ -324,5 +379,7 @@ module.exports = {
 
     enviarCorreo,
 
-    enviarCorreoRecuperacion
+    enviarCorreoRecuperacion,
+
+    enviarCorreoCambioEmail
 };

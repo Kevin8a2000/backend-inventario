@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 
 const { escaparHTML } = require("../utils/sanitizar");
 
-const { enviarCorreo } = require("../utils/email");
+const { enviarCorreo, enviarCorreoCambioEmail } = require("../utils/email");
 
 const crypto = require("crypto");
 
@@ -527,9 +527,81 @@ const resetPassword = async (req, res) => {
     }
 };
 
+// =====================================================
+// 📧 CAMBIO DE EMAIL
+// =====================================================
+
+const changeEmail = async (req, res) => {
+    try {
+        const { emailNuevo, emailAnterior } = req.body;
+
+        if (!emailNuevo || !emailAnterior) {
+            return res.status(400).json({
+                ok: false,
+                error: "emailNuevo y emailAnterior son requeridos"
+            });
+        }
+
+        if (typeof emailNuevo !== "string" || typeof emailAnterior !== "string") {
+            return res.status(400).json({ ok: false, error: "Datos inválidos" });
+        }
+
+        const emailNuevoLimpio = emailNuevo.trim().toLowerCase();
+        const emailAnteriorLimpio = emailAnterior.trim().toLowerCase();
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailNuevoLimpio)) {
+            return res.status(400).json({
+                ok: false,
+                error: "El formato del nuevo correo no es válido"
+            });
+        }
+
+        const yaExiste = await Usuario.findOne({ email: emailNuevoLimpio });
+        if (yaExiste && String(yaExiste._id) !== String(req.usuario.id)) {
+            return res.status(400).json({
+                ok: false,
+                error: "Ese correo ya está registrado por otro usuario"
+            });
+        }
+
+        const usuario = await Usuario.findByIdAndUpdate(
+            req.usuario.id,
+            { $set: { email: emailNuevoLimpio } },
+            { new: true }
+        );
+
+        if (!usuario) {
+            return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        }
+
+        await enviarCorreoCambioEmail(
+            emailAnteriorLimpio,
+            usuario.nombre,
+            emailNuevoLimpio
+        );
+
+        res.json({
+            ok: true,
+            mensaje: "Correo actualizado y notificación enviada"
+        });
+
+    } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+            console.error("📧 Change Email Error:", error.message);
+        }
+
+        res.status(500).json({
+            ok: false,
+            error: "Error al actualizar el correo"
+        });
+    }
+};
+
 module.exports = {
     register,
     login,
     recuperarPassword,
-    resetPassword
+    resetPassword,
+    changeEmail
 };

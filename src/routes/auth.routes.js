@@ -13,8 +13,11 @@ const {
     register,
     login,
     recuperarPassword,
-    resetPassword
+    resetPassword,
+    changeEmail
 } = require("../controllers/auth.controller");
+
+const verificarToken = require("../middlewares/auth");
 
 // =====================================================
 // 🔒 RATE LIMITER PARA AUTH
@@ -84,6 +87,16 @@ router.post(
     "/reset-password/:token",
     validarResetPassword,
     resetPassword
+);
+
+// =====================================================
+// 📧 CAMBIO DE EMAIL
+// =====================================================
+
+router.put(
+    "/change-email",
+    verificarToken,
+    changeEmail
 );
 
 module.exports = router;
