@@ -30,7 +30,13 @@ new mongoose.Schema({
 
         "stock_agotado",
 
-        "movimiento_grande"
+        "movimiento_grande",
+
+        "movimiento_critico",
+
+        "reposicion_necesaria",
+
+        "abastecimiento_grande"
     ],
         default: "info"
     },
