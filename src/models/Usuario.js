@@ -153,6 +153,23 @@ const usuarioSchema = new mongoose.Schema({
     },
 
     // =====================================================
+    // ⚙️ PREFERENCIAS DE NOTIFICACIÓN
+    // =====================================================
+
+    preferencias: {
+
+        email: {
+            type: Boolean,
+            default: true
+        },
+
+        reportes: {
+            type: Boolean,
+            default: true
+        }
+    },
+
+    // =====================================================
     // ✅ ESTADO DEL USUARIO
     // =====================================================
 

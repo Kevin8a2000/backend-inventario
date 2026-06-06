@@ -15,7 +15,8 @@ const {
     recuperarPassword,
     resetPassword,
     changePassword,
-    changeEmail
+    changeEmail,
+    guardarPreferencias
 } = require("../controllers/auth.controller");
 
 const verificarToken = require("../middlewares/auth");
@@ -88,6 +89,16 @@ router.post(
     "/reset-password/:token",
     validarResetPassword,
     resetPassword
+);
+
+// =====================================================
+// ⚙️ PREFERENCIAS DE NOTIFICACIÓN
+// =====================================================
+
+router.put(
+    "/preferencias",
+    verificarToken,
+    guardarPreferencias
 );
 
 // =====================================================

@@ -3,7 +3,7 @@ const Producto = require("../models/Producto");
 const Usuario = require("../models/Usuario");
 const Notificacion = require("../models/Notificacion");
 const crearNotificacion = require("../utils/crearNotificacion");
-const { enviarCorreo } = require("../utils/email");
+const { enviarCorreo, enviarCorreoAlertaStock } = require("../utils/email");
 const logger = require("../utils/logger");
 
 // =====================================================
@@ -117,12 +117,13 @@ const crearMovimiento = async (req, res) => {
                 es_critico
             );
 
-            // 📧 Fire-and-forget — no bloquea la respuesta HTTP
-            enviarCorreo(
-                process.env.EMAIL_TO,
-                "⚠️ Alerta de stock bajo",
-                `El producto ${productoDB.nombre} está por debajo del stock mínimo\n\nStock actual: ${productoDB.stock}\nStock mínimo: ${productoDB.stockMinimo}`
-            ).catch(err => logger.error("Error al enviar correo stock bajo", err));
+            // 📧 Fire-and-forget — envía a usuarios con preferencias.email activo
+            Usuario.find({ "preferencias.email": true }).select("email").then(usuarios => {
+                usuarios.forEach(u => {
+                    enviarCorreoAlertaStock(u.email, productoDB.nombre, productoDB.stock, productoDB.stockMinimo)
+                        .catch(err => logger.error("Error al enviar correo stock bajo", err));
+                });
+            }).catch(err => logger.error("Error al buscar usuarios para alerta stock bajo", err));
         }
 
         // =====================================================

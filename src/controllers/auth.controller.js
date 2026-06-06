@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 
 const { escaparHTML } = require("../utils/sanitizar");
 
-const { enviarCorreo, enviarCorreoCambioEmail } = require("../utils/email");
+const { enviarCorreo, enviarCorreoCambioEmail, enviarCorreoAlertaStock } = require("../utils/email");
 
 const crypto = require("crypto");
 
@@ -658,11 +658,47 @@ const changeEmail = async (req, res) => {
     }
 };
 
+// =====================================================
+// ⚙️ GUARDAR PREFERENCIAS DE NOTIFICACIÓN
+// =====================================================
+
+const guardarPreferencias = async (req, res) => {
+    try {
+        const { email, reportes } = req.body;
+
+        if (typeof email !== "boolean" || typeof reportes !== "boolean") {
+            return res.status(400).json({
+                ok: false,
+                error: "email y reportes deben ser booleanos"
+            });
+        }
+
+        const usuario = await Usuario.findByIdAndUpdate(
+            req.usuario.id,
+            { $set: { "preferencias.email": email, "preferencias.reportes": reportes } },
+            { new: true }
+        );
+
+        if (!usuario) {
+            return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        }
+
+        res.json({ ok: true, mensaje: "Preferencias guardadas" });
+
+    } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+            console.error("⚙️ Preferencias Error:", error.message);
+        }
+        res.status(500).json({ ok: false, error: "Error al guardar preferencias" });
+    }
+};
+
 module.exports = {
     register,
     login,
     recuperarPassword,
     resetPassword,
     changePassword,
-    changeEmail
+    changeEmail,
+    guardarPreferencias
 };

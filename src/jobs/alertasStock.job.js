@@ -1,8 +1,9 @@
 const cron = require("node-cron");
 
 const Producto = require("../models/Producto");
+const Usuario = require("../models/Usuario");
 
-const { enviarCorreo } = require("../utils/email");
+const { enviarCorreo, enviarCorreoReporteSemanal } = require("../utils/email");
 
 const crearNotificacion =
 require("../utils/crearNotificacion");
@@ -142,6 +143,42 @@ Stock mínimo: ${producto.stockMinimo}
 
         console.log(
             "Error alerta stock bajo:",
+            error
+        );
+    }
+
+});
+
+// =====================================================
+// 📦 REPORTE SEMANAL — LUNES 8:00 AM
+// =====================================================
+
+cron.schedule("0 8 * * 1", async () => {
+
+    try {
+
+        console.log("📦 Enviando reporte semanal de inventario...");
+
+        const usuarios = await Usuario.find({
+            "preferencias.reportes": true
+        }).select("email nombre");
+
+        const productos = await Producto.find()
+            .sort({ stock: 1 })
+            .limit(10);
+
+        for (const u of usuarios) {
+            await enviarCorreoReporteSemanal(u.email, u.nombre, productos);
+        }
+
+        console.log(
+            `✅ Reporte semanal enviado a ${usuarios.length} usuario(s)`
+        );
+
+    } catch (error) {
+
+        console.log(
+            "Error reporte semanal:",
             error
         );
     }
