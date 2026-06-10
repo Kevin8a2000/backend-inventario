@@ -35,7 +35,8 @@ const permisosValidos = [
     "ver_reportes",
     "gestionar_usuarios",
     "crear_lote",
-    "editar_lote"
+    "editar_lote",
+    "registrar_movimiento"
 ];
 
 // =====================================================

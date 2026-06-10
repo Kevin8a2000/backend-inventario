@@ -211,7 +211,8 @@ router.put(
                 "ver_reportes",
                 "gestionar_usuarios",
                 "crear_lote",
-                "editar_lote"
+                "editar_lote",
+                "registrar_movimiento"
             ];
 
             const permisosLimpios = permisos.filter(p => 
