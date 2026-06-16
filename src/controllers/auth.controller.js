@@ -377,7 +377,12 @@ const login = async (req, res) => {
                     usuario.permisos || [],
 
                 notificaciones:
-                    usuario.notificaciones
+                    usuario.notificaciones,
+
+                preferencias: {
+                    email:    usuario.preferencias?.email    ?? true,
+                    reportes: usuario.preferencias?.reportes ?? true,
+                }
             }
         });
 
@@ -657,6 +662,31 @@ const changeEmail = async (req, res) => {
 };
 
 // =====================================================
+// ⚙️ OBTENER PREFERENCIAS DE NOTIFICACIÓN
+// =====================================================
+
+const obtenerPreferencias = async (req, res) => {
+    try {
+        const usuario = await Usuario.findById(req.usuario.id).select("preferencias");
+
+        if (!usuario) {
+            return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        }
+
+        res.json({
+            email:    usuario.preferencias?.email    ?? true,
+            reportes: usuario.preferencias?.reportes ?? true,
+        });
+
+    } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+            console.error("⚙️ Obtener Preferencias Error:", error.message);
+        }
+        res.status(500).json({ ok: false, error: "Error al obtener preferencias" });
+    }
+};
+
+// =====================================================
 // ⚙️ GUARDAR PREFERENCIAS DE NOTIFICACIÓN
 // =====================================================
 
@@ -698,5 +728,6 @@ module.exports = {
     resetPassword,
     changePassword,
     changeEmail,
+    obtenerPreferencias,
     guardarPreferencias
 };

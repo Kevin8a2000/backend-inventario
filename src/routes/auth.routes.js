@@ -16,6 +16,7 @@ const {
     resetPassword,
     changePassword,
     changeEmail,
+    obtenerPreferencias,
     guardarPreferencias
 } = require("../controllers/auth.controller");
 
@@ -94,6 +95,12 @@ router.post(
 // =====================================================
 // ⚙️ PREFERENCIAS DE NOTIFICACIÓN
 // =====================================================
+
+router.get(
+    "/preferencias",
+    verificarToken,
+    obtenerPreferencias
+);
 
 router.put(
     "/preferencias",
