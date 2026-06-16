@@ -431,7 +431,7 @@ const recuperarPassword = async (req, res) => {
         await usuario.save();
 
         // 🔗 LINK FRONTEND
-        const link = `https://invenstock-la-costa.vercel.app/reset-password/${token}`;
+        const link = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
         // 📧 ENVIAR CORREO
         await enviarCorreo(
