@@ -49,24 +49,38 @@ async function generarSugerenciasAutomaticas(usuarioId) {
     }).limit(3);
 
     for (const p of sinMovimiento) {
-        nuevas.push({
+        const yaExiste = await Sugerencia.findOne({
             usuario: usuarioId,
-            tipo: "sugerencia",
-            icono: "📦",
             titulo: `Stock estancado: ${p.nombre}`,
-            descripcion: `Este producto lleva más de 30 días sin movimientos y tiene ${p.stock} unidades en stock.`
+            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         });
+        if (!yaExiste) {
+            nuevas.push({
+                usuario: usuarioId,
+                tipo: "sugerencia",
+                icono: "📦",
+                titulo: `Stock estancado: ${p.nombre}`,
+                descripcion: `Este producto lleva más de 30 días sin movimientos y tiene ${p.stock} unidades en stock.`
+            });
+        }
     }
 
     // 3. Recordatorio de reporte si es lunes
     if (new Date().getDay() === 1) {
-        nuevas.push({
+        const yaExiste = await Sugerencia.findOne({
             usuario: usuarioId,
-            tipo: "recordatorio",
-            icono: "📅",
             titulo: "Reporte semanal disponible",
-            descripcion: "Revisa el resumen de movimientos de la semana en la sección de Reportes."
+            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         });
+        if (!yaExiste) {
+            nuevas.push({
+                usuario: usuarioId,
+                tipo: "recordatorio",
+                icono: "📅",
+                titulo: "Reporte semanal disponible",
+                descripcion: "Revisa el resumen de movimientos de la semana en la sección de Reportes."
+            });
+        }
     }
 
     if (nuevas.length > 0) {
