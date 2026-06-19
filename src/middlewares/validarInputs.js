@@ -248,7 +248,7 @@ const validarRecuperarPassword = [
 ];
 
 const validarResetPassword = [
-    body('token')
+    param('token')
         .notEmpty().withMessage('El token es obligatorio'),
     
     body('password')
