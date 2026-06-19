@@ -87,39 +87,45 @@ router.get(
     async (req, res) => {
         try {
             const { search, estado } = req.query;
-            let productos = await Producto.find({ usaLotes: true }).populate("categoria");
             const hoy = new Date();
+            let productos = await Producto.find({ usaLotes: true, "lotes.0": { $exists: true } }).populate("categoria");
+
+            let lotes = [];
+            productos.forEach(p => {
+                p.lotes.forEach(l => {
+                    lotes.push({
+                        id:               l._id,
+                        productoId:       p._id,
+                        producto:         p.nombre,
+                        marca:            p.marca,
+                        categoria:        p.categoria?.nombre,
+                        lote:             l,
+                        sku:              p.sku,
+                        fechaVencimiento: l.fechaVencimiento,
+                        stock:            l.stock
+                    });
+                });
+            });
 
             if (search && typeof search === 'string') {
                 const texto = sanitizarTexto(search).toLowerCase();
                 if (texto) {
-                    productos = productos.filter(p => {
-                        return [p.nombre, p.marca, p.lote, p.sku]
-                            .some(value => typeof value === 'string' && value.toLowerCase().includes(texto));
-                    });
+                    lotes = lotes.filter(l =>
+                        [l.producto, l.marca, l.lote?.codigo, l.sku]
+                            .some(v => typeof v === 'string' && v.toLowerCase().includes(texto))
+                    );
                 }
             }
 
             if (estado && typeof estado === 'string') {
-                productos = productos.filter(p => {
-                    const fecha = new Date(p.fechaVencimiento);
-                    if (estado === "vencido") return fecha < hoy;
-                    if (estado === "agotado") return p.stock <= 0;
-                    if (estado === "activo") return p.stock > 0 && fecha >= hoy;
+                lotes = lotes.filter(l => {
+                    const fecha = l.fechaVencimiento ? new Date(l.fechaVencimiento) : null;
+                    if (estado === "vencido") return fecha && fecha < hoy;
+                    if (estado === "agotado") return l.stock <= 0;
+                    if (estado === "activo") return l.stock > 0 && (!fecha || fecha >= hoy);
                     return true;
                 });
             }
-
-            const lotes = productos.map(p => ({
-                id: p._id,
-                producto: p.nombre,
-                marca: p.marca,
-                categoria: p.categoria?.nombre,
-                lote: p.lote,
-                sku: p.sku,
-                fechaVencimiento: p.fechaVencimiento,
-                stock: p.stock
-            }));
 
             res.json({ ok: true, data: lotes, total: lotes.length });
         } catch (error) {
@@ -138,15 +144,15 @@ router.get(
     verificarPermiso("crear_lote"),
     async (req, res) => {
         try {
-            const productos = await Producto.find({ usaLotes: true });
-            const totalLotes = productos.length;
-            const activos = productos.filter(p => p.stock > 0).length;
-            const agotados = productos.filter(p => p.stock <= 0).length;
+            const productos = await Producto.find({ usaLotes: true, "lotes.0": { $exists: true } });
             const hoy = new Date();
-            const proximosVencer = productos.filter(p => {
-                if (!p.fechaVencimiento) return false;
-                const fecha = new Date(p.fechaVencimiento);
-                const dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+            const todosLotes = productos.flatMap(p => p.lotes);
+            const totalLotes = todosLotes.length;
+            const activos = todosLotes.filter(l => l.stock > 0).length;
+            const agotados = todosLotes.filter(l => l.stock <= 0).length;
+            const proximosVencer = todosLotes.filter(l => {
+                if (!l.fechaVencimiento) return false;
+                const dias = Math.ceil((new Date(l.fechaVencimiento) - hoy) / (1000 * 60 * 60 * 24));
                 return dias <= 30 && dias >= 0;
             }).length;
 
@@ -173,40 +179,29 @@ router.post(
                 return res.status(400).json({ error: "productoId es requerido" });
             }
 
-            const productoBase = await Producto.findById(productoId);
-            if (!productoBase) {
+            const producto = await Producto.findById(productoId);
+            if (!producto) {
                 return res.status(404).json({ error: "Producto no encontrado" });
             }
 
-            const nuevoLote = new Producto({
-                nombre:       productoBase.nombre,
-                descripcion:  productoBase.descripcion,
-                marca:        productoBase.marca,
-                sku:          `${productoBase.sku}-${Date.now()}`,
-                categoria:    productoBase.categoria,
-                precio:       productoBase.precio,
-                stock:        Number(stock) || 0,
-                stockMinimo:  productoBase.stockMinimo,
-                usaLotes:     true,
-                lote: {
-                    codigo:           sanitizarTexto(lote || "S/N"),
-                    fechaEntrada:     new Date(),
-                    usaVencimiento:   !!fechaVencimiento,
-                    fechaVencimiento: fechaVencimiento || null,
-                    observacion:      sanitizarTexto(observacionLote || "")
-                },
+            producto.lotes.push({
+                codigo:           sanitizarTexto(lote || 'S/N'),
+                stock:            Number(stock) || 0,
+                fechaEntrada:     new Date(),
                 fechaVencimiento: fechaVencimiento || null,
-                observacionLote:  sanitizarTexto(observacionLote || "")
+                observacion:      sanitizarTexto(observacionLote || '')
             });
 
-            await nuevoLote.save();
+            producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
+            await producto.save();
 
             await crearNotificacion(
                 "Nuevo lote creado",
-                `Se creó el lote ${lote || "S/N"} para el producto ${productoBase.nombre}.`,
+                `Se creó el lote ${lote || "S/N"} para el producto ${producto.nombre}.`,
                 "success"
             );
 
+            const nuevoLote = producto.lotes[producto.lotes.length - 1];
             res.status(201).json({ ok: true, mensaje: "Lote creado correctamente", lote: nuevoLote });
 
         } catch (error) {
@@ -349,15 +344,21 @@ router.delete(
     verificarPermiso("eliminar_producto"),
     async (req, res) => {
         try {
-            const producto = await Producto.findByIdAndDelete(req.params.id);
-
+            const producto = await Producto.findOne({ "lotes._id": req.params.id });
             if (!producto) {
                 return res.status(404).json({ ok: false, error: "Lote no encontrado" });
             }
 
+            const loteEntry = producto.lotes.id(req.params.id);
+            const codigoLote = loteEntry?.codigo || 'S/N';
+
+            producto.lotes.pull({ _id: req.params.id });
+            producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
+            await producto.save();
+
             await crearNotificacion(
                 "Lote eliminado",
-                `El lote ${producto.lote?.codigo || "S/N"} del producto ${producto.nombre} fue eliminado.`,
+                `El lote ${codigoLote} del producto ${producto.nombre} fue eliminado.`,
                 "warning"
             );
 
@@ -379,35 +380,33 @@ router.put(
     verificarPermiso("crear_lote"),
     async (req, res) => {
         try {
-            const { lote, nombre, sku, stock, fechaVencimiento, observacionLote } = req.body;
-            const producto = await Producto.findById(req.params.id);
+            const { lote, stock, fechaVencimiento, observacionLote } = req.body;
+            const producto = await Producto.findOne({ "lotes._id": req.params.id });
             if (!producto) {
-                return res.status(404).json({ error: "Producto no encontrado" });
+                return res.status(404).json({ error: "Lote no encontrado" });
             }
 
+            const loteEntry = producto.lotes.id(req.params.id);
             const stockAnterior = producto.stock;
-            // SKU y nombre NO se modifican desde edición de lote — tienen índice único
-            if (lote !== undefined) producto.lote = {
-                ...producto.lote,
-                codigo: sanitizarTexto(String(lote))
-            };
-            if (stock !== undefined) producto.stock = Number(stock);
-            if (fechaVencimiento !== undefined) producto.fechaVencimiento = fechaVencimiento || null;
-            if (observacionLote !== undefined) producto.observacionLote = sanitizarTexto(observacionLote);
 
+            if (lote !== undefined)           loteEntry.codigo           = sanitizarTexto(String(lote));
+            if (stock !== undefined)           loteEntry.stock            = Number(stock);
+            if (fechaVencimiento !== undefined) loteEntry.fechaVencimiento = fechaVencimiento || null;
+            if (observacionLote !== undefined)  loteEntry.observacion      = sanitizarTexto(observacionLote);
+
+            producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
             await producto.save();
 
             await crearNotificacion(
                 "Lote actualizado",
-                `El lote ${producto.lote?.codigo || producto.lote} fue actualizado.`,
+                `El lote ${loteEntry.codigo} del producto ${producto.nombre} fue actualizado.`,
                 "info"
             );
 
-            // 📧 Fire-and-forget — no bloquea la respuesta HTTP
             enviarCorreo(
                 process.env.EMAIL_TO,
                 "✏️ Lote actualizado",
-                `Producto: ${producto.nombre} | Lote: ${producto.lote?.codigo || 'S/N'} | SKU: ${producto.sku} | Stock anterior: ${stockAnterior} | Nuevo stock: ${producto.stock}`
+                `Producto: ${producto.nombre} | Lote: ${loteEntry.codigo} | SKU: ${producto.sku} | Stock anterior: ${stockAnterior} | Nuevo stock: ${producto.stock}`
             ).catch(err => console.error("Error al enviar correo lote:", err.message));
 
             res.json({ mensaje: "Lote actualizado correctamente", producto });

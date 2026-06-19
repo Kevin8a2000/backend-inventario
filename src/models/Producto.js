@@ -99,6 +99,14 @@ const productoSchema = new mongoose.Schema({
         trim: true
     },
 
+    lotes: [{
+        codigo:           { type: String, default: 'S/N' },
+        stock:            { type: Number, default: 0, min: 0 },
+        fechaEntrada:     { type: Date,   default: Date.now },
+        fechaVencimiento: { type: Date,   default: null },
+        observacion:      { type: String, default: '' }
+    }],
+
     diasAlerta: {
         type: Number,
         default: 30,
