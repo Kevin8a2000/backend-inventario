@@ -157,6 +157,13 @@ const crearMovimiento = async (req, res) => {
                     true
                 );
 
+                Usuario.find({ $or: [{ "preferencias.email": true }, { "preferencias": { $exists: false } }] }).select("email").then(usuarios => {
+                    usuarios.forEach(u => {
+                        enviarCorreo(u.email, "🚀 Abastecimiento grande registrado",
+                            `Se registró una entrada de <strong>${cantidad} unidades</strong> de <strong>${productoDB.nombre}</strong>.<br><br>Stock actual: ${productoDB.stock} unidades.`)
+                            .catch(err => logger.error("Error al enviar correo abastecimiento grande", err));
+                    });
+                }).catch(err => logger.error("Error al buscar usuarios para alerta abastecimiento", err));
 
             } else if (es_movimiento_critico) {
 
@@ -171,6 +178,13 @@ const crearMovimiento = async (req, res) => {
                     true
                 );
 
+                Usuario.find({ $or: [{ "preferencias.email": true }, { "preferencias": { $exists: false } }] }).select("email").then(usuarios => {
+                    usuarios.forEach(u => {
+                        enviarCorreo(u.email, "🚨 Movimiento crítico detectado",
+                            `Se registró una <strong>${tipoTexto}</strong> de <strong>${cantidad} unidades</strong> de <strong>${productoDB.nombre}</strong>.<br><br>Stock actual: ${productoDB.stock} unidades.`)
+                            .catch(err => logger.error("Error al enviar correo movimiento crítico", err));
+                    });
+                }).catch(err => logger.error("Error al buscar usuarios para alerta movimiento crítico", err));
 
             } else if (es_movimiento_grande) {
 
@@ -184,6 +198,14 @@ const crearMovimiento = async (req, res) => {
                     io,
                     false
                 );
+
+                Usuario.find({ $or: [{ "preferencias.email": true }, { "preferencias": { $exists: false } }] }).select("email").then(usuarios => {
+                    usuarios.forEach(u => {
+                        enviarCorreo(u.email, "⚠️ Movimiento grande registrado",
+                            `Se registró una <strong>${tipoTexto}</strong> de <strong>${cantidad} unidades</strong> de <strong>${productoDB.nombre}</strong>.<br><br>Stock actual: ${productoDB.stock} unidades.`)
+                            .catch(err => logger.error("Error al enviar correo movimiento grande", err));
+                    });
+                }).catch(err => logger.error("Error al buscar usuarios para alerta movimiento grande", err));
 
             }
         }
