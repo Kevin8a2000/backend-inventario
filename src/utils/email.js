@@ -1,17 +1,38 @@
-const nodemailer = require("nodemailer");
+const enviarBrevo = async (destinatario, asunto, html, adjunto = null) => {
 
-const transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.BREVO_SMTP_USER,
-        pass: process.env.BREVO_SMTP_PASS
+    const body = {
+        sender: { email: process.env.BREVO_FROM },
+        to: [{ email: destinatario }],
+        subject: asunto,
+        htmlContent: html
+    };
+
+    if (adjunto) {
+        body.attachment = [{
+            name: adjunto.filename,
+            content: Buffer.isBuffer(adjunto.content)
+                ? adjunto.content.toString("base64")
+                : adjunto.content
+        }];
     }
-});
 
-const FROM = process.env.BREVO_FROM;
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+            "api-key": process.env.BREVO_API_KEY,
+            "content-type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
 
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Error al enviar correo con Brevo");
+    }
+
+    const data = await res.json();
+    console.log(`📧 Correo enviado a ${destinatario} | id: ${data.messageId}`);
+};
 
 
 // =====================================================
@@ -84,26 +105,8 @@ const generarTemplate = (titulo, mensaje, botonTexto = null, botonLink = null) =
 // =====================================================
 
 const enviarCorreo = async (destinatario, asunto, mensaje, archivoAdjunto = null) => {
-
     const html = generarTemplate("📊 Reporte de Inventario", mensaje);
-
-    const payload = {
-        from: FROM,
-        to: destinatario,
-        subject: asunto,
-        html
-    };
-
-    if (archivoAdjunto) {
-        payload.attachments = [{
-            filename: archivoAdjunto.filename,
-            content: archivoAdjunto.content
-        }];
-    }
-
-    const info = await transporter.sendMail(payload);
-
-    console.log(`📧 Correo enviado a ${destinatario} | id: ${info.messageId}`);
+    await enviarBrevo(destinatario, asunto, html, archivoAdjunto);
 };
 
 // =====================================================
@@ -128,14 +131,7 @@ const enviarCorreoRecuperacion = async (destinatario, nombre, token) => {
         link
     );
 
-    const info = await transporter.sendMail({
-        from: FROM,
-        to: destinatario,
-        subject: "🔐 Recuperación de contraseña",
-        html
-    });
-
-    console.log(`📧 Recuperación enviada a ${destinatario} | id: ${info.messageId}`);
+    await enviarBrevo(destinatario, "🔐 Recuperación de contraseña", html);
 };
 
 // =====================================================
@@ -152,15 +148,7 @@ const enviarCorreoAlertaStock = async (destinatario, productoNombre, stockActual
     `;
 
     const html = generarTemplate("⚠️ Alerta de Stock Bajo", mensaje);
-
-    const info = await transporter.sendMail({
-        from: FROM,
-        to: destinatario,
-        subject: `⚠️ Stock bajo: ${productoNombre}`,
-        html
-    });
-
-    console.log(`📧 Alerta stock enviada a ${destinatario} | id: ${info.messageId}`);
+    await enviarBrevo(destinatario, `⚠️ Stock bajo: ${productoNombre}`, html);
 };
 
 // =====================================================
@@ -229,14 +217,7 @@ const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
             </html>
         `;
 
-        const info = await transporter.sendMail({
-            from: FROM,
-            to: destinatario,
-            subject: '📦 Reporte Semanal de Inventario — InvStock La Costa',
-            html
-        });
-
-        console.log(`📧 Reporte semanal enviado a ${destinatario} | id: ${info.messageId}`);
+        await enviarBrevo(destinatario, '📦 Reporte Semanal de Inventario — InvStock La Costa', html);
 
     } catch (error) {
         console.log("❌ Error reporte semanal:", error.message);
@@ -258,15 +239,7 @@ const enviarCorreoCambioEmail = async (destinatario, nombre, emailNuevo) => {
     `;
 
     const html = generarTemplate("📧 Cambio de Correo Electrónico", mensaje);
-
-    const info = await transporter.sendMail({
-        from: FROM,
-        to: destinatario,
-        subject: "📧 Tu correo electrónico ha sido actualizado",
-        html
-    });
-
-    console.log(`📧 Cambio de correo enviado a ${destinatario} | id: ${info.messageId}`);
+    await enviarBrevo(destinatario, "📧 Tu correo electrónico ha sido actualizado", html);
 };
 
 // =====================================================
