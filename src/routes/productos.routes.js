@@ -182,7 +182,7 @@ router.post(
                 nombre:       productoBase.nombre,
                 descripcion:  productoBase.descripcion,
                 marca:        productoBase.marca,
-                sku:          sku || `${productoBase.sku}-${Date.now()}`,
+                sku:          `${productoBase.sku}-${Date.now()}`,
                 categoria:    productoBase.categoria,
                 precio:       productoBase.precio,
                 stock:        Number(stock) || 0,
