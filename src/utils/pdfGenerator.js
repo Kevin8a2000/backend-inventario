@@ -78,15 +78,15 @@ const generarPDF = async (filtros = {}) => {
 
         ) {
 
+            const inicio = new Date(filtros.fechaInicio);
+            inicio.setUTCHours(0, 0, 0, 0);
+
+            const fin = new Date(filtros.fechaFin);
+            fin.setUTCHours(23, 59, 59, 999);
+
             query.createdAt = {
-
-                $gte: new Date(
-                    filtros.fechaInicio
-                ),
-
-                $lte: new Date(
-                    filtros.fechaFin
-                )
+                $gte: inicio,
+                $lte: fin
             };
 
         } else {
@@ -128,35 +128,16 @@ const generarPDF = async (filtros = {}) => {
         // 🔥 ORDEN
         // =====================================================
 
-        if (
-            filtros.orden === "recientes"
-        ) {
-
-            movimientosQuery =
-                movimientosQuery.sort({
-
-                    createdAt: -1
-                });
-
-        } else if (
-
-            filtros.orden === "antiguos"
-
-        ) {
-
-            movimientosQuery =
-                movimientosQuery.sort({
-
-                    createdAt: 1
-                });
-
+        if (filtros.orden === "recientes") {
+            movimientosQuery = movimientosQuery.sort({ createdAt: -1 });
+        } else if (filtros.orden === "antiguos") {
+            movimientosQuery = movimientosQuery.sort({ createdAt: 1 });
+        } else if (filtros.orden === "mayor") {
+            movimientosQuery = movimientosQuery.sort({ cantidad: -1 });
+        } else if (filtros.orden === "menor") {
+            movimientosQuery = movimientosQuery.sort({ cantidad: 1 });
         } else {
-
-            movimientosQuery =
-                movimientosQuery.sort({
-
-                    createdAt: -1
-                });
+            movimientosQuery = movimientosQuery.sort({ createdAt: -1 });
         }
 
         const movimientos =
