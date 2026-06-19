@@ -365,25 +365,46 @@ router.delete(
     verificarPermiso("eliminar_producto"),
     async (req, res) => {
         try {
-            const producto = await Producto.findOne({ "lotes._id": req.params.id });
-            if (!producto) {
-                return res.status(404).json({ ok: false, error: "Lote no encontrado" });
+            const { id } = req.params;
+
+            // Formato nuevo: subdocumento en lotes[]
+            let producto = await Producto.findOne({ "lotes._id": id });
+            if (producto) {
+                const loteEntry = producto.lotes.id(id);
+                const codigoLote = loteEntry?.codigo || 'S/N';
+
+                producto.lotes.pull({ _id: id });
+                producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
+                await producto.save();
+
+                await crearNotificacion(
+                    "Lote eliminado",
+                    `El lote ${codigoLote} del producto ${producto.nombre} fue eliminado.`,
+                    "warning"
+                );
+
+                return res.json({ ok: true, mensaje: "Lote eliminado correctamente" });
             }
 
-            const loteEntry = producto.lotes.id(req.params.id);
-            const codigoLote = loteEntry?.codigo || 'S/N';
+            // Formato legacy: el id es el _id del producto, lote embebido en producto.lote
+            producto = await Producto.findById(id);
+            if (producto && producto.usaLotes && producto.lotes.length === 0) {
+                const codigoLote = producto.lote?.codigo || 'S/N';
 
-            producto.lotes.pull({ _id: req.params.id });
-            producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
-            await producto.save();
+                producto.lote = { codigo: 'N/A', fechaEntrada: new Date(), usaVencimiento: false, fechaVencimiento: null, diasAlerta: 30, observacion: '' };
+                producto.stock = 0;
+                await producto.save();
 
-            await crearNotificacion(
-                "Lote eliminado",
-                `El lote ${codigoLote} del producto ${producto.nombre} fue eliminado.`,
-                "warning"
-            );
+                await crearNotificacion(
+                    "Lote eliminado",
+                    `El lote ${codigoLote} del producto ${producto.nombre} fue eliminado.`,
+                    "warning"
+                );
 
-            res.json({ ok: true, mensaje: "Lote eliminado correctamente" });
+                return res.json({ ok: true, mensaje: "Lote eliminado correctamente" });
+            }
+
+            return res.status(404).json({ ok: false, error: "Lote no encontrado" });
         } catch (error) {
             console.error("Error al eliminar lote:", error);
             res.status(500).json({ ok: false, error: "Error al eliminar lote" });
@@ -402,35 +423,65 @@ router.put(
     async (req, res) => {
         try {
             const { lote, stock, fechaVencimiento, observacionLote } = req.body;
-            const producto = await Producto.findOne({ "lotes._id": req.params.id });
-            if (!producto) {
-                return res.status(404).json({ error: "Lote no encontrado" });
+            const { id } = req.params;
+
+            // Formato nuevo: subdocumento en lotes[]
+            let producto = await Producto.findOne({ "lotes._id": id });
+            if (producto) {
+                const loteEntry = producto.lotes.id(id);
+                const stockAnterior = producto.stock;
+
+                if (lote !== undefined)            loteEntry.codigo           = sanitizarTexto(String(lote));
+                if (stock !== undefined)            loteEntry.stock            = Number(stock);
+                if (fechaVencimiento !== undefined) loteEntry.fechaVencimiento = fechaVencimiento || null;
+                if (observacionLote !== undefined)  loteEntry.observacion      = sanitizarTexto(observacionLote);
+
+                producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
+                await producto.save();
+
+                await crearNotificacion(
+                    "Lote actualizado",
+                    `El lote ${loteEntry.codigo} del producto ${producto.nombre} fue actualizado.`,
+                    "info"
+                );
+
+                enviarCorreo(
+                    process.env.EMAIL_TO,
+                    "✏️ Lote actualizado",
+                    `Producto: ${producto.nombre} | Lote: ${loteEntry.codigo} | SKU: ${producto.sku} | Stock anterior: ${stockAnterior} | Nuevo stock: ${producto.stock}`
+                ).catch(err => console.error("Error al enviar correo lote:", err.message));
+
+                return res.json({ mensaje: "Lote actualizado correctamente", producto });
             }
 
-            const loteEntry = producto.lotes.id(req.params.id);
-            const stockAnterior = producto.stock;
+            // Formato legacy: el id es el _id del producto, lote embebido en producto.lote
+            producto = await Producto.findById(id);
+            if (producto && producto.usaLotes && producto.lotes.length === 0) {
+                const stockAnterior = producto.stock;
 
-            if (lote !== undefined)           loteEntry.codigo           = sanitizarTexto(String(lote));
-            if (stock !== undefined)           loteEntry.stock            = Number(stock);
-            if (fechaVencimiento !== undefined) loteEntry.fechaVencimiento = fechaVencimiento || null;
-            if (observacionLote !== undefined)  loteEntry.observacion      = sanitizarTexto(observacionLote);
+                if (lote !== undefined)            producto.lote.codigo           = sanitizarTexto(String(lote));
+                if (fechaVencimiento !== undefined) producto.lote.fechaVencimiento = fechaVencimiento || null;
+                if (observacionLote !== undefined)  producto.lote.observacion      = sanitizarTexto(observacionLote);
+                if (stock !== undefined)            producto.stock                 = Number(stock);
 
-            producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
-            await producto.save();
+                await producto.save();
 
-            await crearNotificacion(
-                "Lote actualizado",
-                `El lote ${loteEntry.codigo} del producto ${producto.nombre} fue actualizado.`,
-                "info"
-            );
+                await crearNotificacion(
+                    "Lote actualizado",
+                    `El lote ${producto.lote.codigo} del producto ${producto.nombre} fue actualizado.`,
+                    "info"
+                );
 
-            enviarCorreo(
-                process.env.EMAIL_TO,
-                "✏️ Lote actualizado",
-                `Producto: ${producto.nombre} | Lote: ${loteEntry.codigo} | SKU: ${producto.sku} | Stock anterior: ${stockAnterior} | Nuevo stock: ${producto.stock}`
-            ).catch(err => console.error("Error al enviar correo lote:", err.message));
+                enviarCorreo(
+                    process.env.EMAIL_TO,
+                    "✏️ Lote actualizado",
+                    `Producto: ${producto.nombre} | Lote: ${producto.lote.codigo} | SKU: ${producto.sku} | Stock anterior: ${stockAnterior} | Nuevo stock: ${producto.stock}`
+                ).catch(err => console.error("Error al enviar correo lote:", err.message));
 
-            res.json({ mensaje: "Lote actualizado correctamente", producto });
+                return res.json({ mensaje: "Lote actualizado correctamente", producto });
+            }
+
+            return res.status(404).json({ error: "Lote no encontrado" });
         } catch (error) {
             console.error("Error al actualizar lote:", error);
             res.status(500).json({ error: "Error al actualizar lote" });
