@@ -88,23 +88,39 @@ router.get(
         try {
             const { search, estado } = req.query;
             const hoy = new Date();
-            let productos = await Producto.find({ usaLotes: true, "lotes.0": { $exists: true } }).populate("categoria");
+            let productos = await Producto.find({ usaLotes: true }).populate("categoria");
 
             let lotes = [];
             productos.forEach(p => {
-                p.lotes.forEach(l => {
+                if (p.lotes && p.lotes.length > 0) {
+                    // Formato nuevo: array de lotes dentro del producto
+                    p.lotes.forEach(l => {
+                        lotes.push({
+                            id:               l._id,
+                            productoId:       p._id,
+                            producto:         p.nombre,
+                            marca:            p.marca,
+                            categoria:        p.categoria?.nombre,
+                            lote:             l,
+                            sku:              p.sku,
+                            fechaVencimiento: l.fechaVencimiento,
+                            stock:            l.stock
+                        });
+                    });
+                } else {
+                    // Formato antiguo: lote como objeto único en el documento
                     lotes.push({
-                        id:               l._id,
+                        id:               p._id,
                         productoId:       p._id,
                         producto:         p.nombre,
                         marca:            p.marca,
                         categoria:        p.categoria?.nombre,
-                        lote:             l,
+                        lote:             p.lote,
                         sku:              p.sku,
-                        fechaVencimiento: l.fechaVencimiento,
-                        stock:            l.stock
+                        fechaVencimiento: p.fechaVencimiento,
+                        stock:            p.stock
                     });
-                });
+                }
             });
 
             if (search && typeof search === 'string') {
@@ -144,9 +160,14 @@ router.get(
     verificarPermiso("crear_lote"),
     async (req, res) => {
         try {
-            const productos = await Producto.find({ usaLotes: true, "lotes.0": { $exists: true } });
+            const productos = await Producto.find({ usaLotes: true });
             const hoy = new Date();
-            const todosLotes = productos.flatMap(p => p.lotes);
+            // Unificar ambos formatos
+            const todosLotes = productos.flatMap(p =>
+                p.lotes && p.lotes.length > 0
+                    ? p.lotes
+                    : [{ stock: p.stock, fechaVencimiento: p.fechaVencimiento }]
+            );
             const totalLotes = todosLotes.length;
             const activos = todosLotes.filter(l => l.stock > 0).length;
             const agotados = todosLotes.filter(l => l.stock <= 0).length;
