@@ -52,7 +52,7 @@ const generarPDF = async (filtros = {}) => {
             .fillColor("#6b7280")
             .text(
 
-                `Fecha: ${new Date().toLocaleString()}`,
+                `Fecha: ${new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`,
 
                 {
                     align: "center"
@@ -285,7 +285,7 @@ const generarPDF = async (filtros = {}) => {
 
                 .text(
 
-                    `MES: ${fechaBonita.toLocaleString("es-ES", {
+                    `MES: ${fechaBonita.toLocaleString("es-CO", { timeZone: 'America/Bogota',
 
                         month: "long",
 
@@ -509,7 +509,7 @@ const generarPDF = async (filtros = {}) => {
 
                     new Date(
                         mov.createdAt
-                    ).toLocaleDateString()
+                    ).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
                 );
 
                 const nombre =
