@@ -24,10 +24,6 @@ router.post(
 
     verificarToken,
 
-    verificarPermiso(
-        "ver_reportes"
-    ),
-
     generarReportePDF
 );
 
@@ -40,10 +36,6 @@ router.post(
     "/pdf",
 
     verificarToken,
-
-    verificarPermiso(
-        "ver_reportes"
-    ),
 
     generarReportePDF
 );
