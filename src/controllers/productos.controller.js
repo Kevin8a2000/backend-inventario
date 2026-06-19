@@ -131,7 +131,8 @@ exports.actualizarProducto = async (req, res) => {
 
         const camposPermitidos = [
             'nombre', 'descripcion', 'marca', 'precio',
-            'stock', 'stockMinimo', 'movimientoMaximo', 'categoria', 'imagen'
+            'stock', 'stockMinimo', 'movimientoMaximo', 'categoria', 'imagen',
+            'usaLotes', 'diasAlerta', 'fechaVencimiento', 'observacionLote'
         ];
         const datosActualizacion = {};
 
@@ -143,12 +144,29 @@ exports.actualizarProducto = async (req, res) => {
                     datosActualizacion[campo] = escaparHTML(limitarLongitud(req.body[campo] || "", 500));
                 } else if (campo === 'marca') {
                     datosActualizacion[campo] = escaparHTML(limitarLongitud(req.body[campo] || "", 100));
-                } else if (['precio', 'stock', 'stockMinimo', 'movimientoMaximo'].includes(campo)) {
+                } else if (campo === 'observacionLote') {
+                    datosActualizacion[campo] = escaparHTML(limitarLongitud(req.body[campo] || "", 500));
+                } else if (['precio', 'stock', 'stockMinimo', 'movimientoMaximo', 'diasAlerta'].includes(campo)) {
                     datosActualizacion[campo] = Number(req.body[campo]);
                 } else {
                     datosActualizacion[campo] = req.body[campo];
                 }
             }
+        }
+
+        // Actualizar subfields del lote legacy con notación de punto
+        if (req.body.lote && typeof req.body.lote === 'object') {
+            const l = req.body.lote;
+            if (l.codigo !== undefined)
+                datosActualizacion['lote.codigo']          = escaparHTML(limitarLongitud(String(l.codigo), 100));
+            if (l.fechaVencimiento !== undefined)
+                datosActualizacion['lote.fechaVencimiento'] = l.fechaVencimiento || null;
+            if (l.observacion !== undefined)
+                datosActualizacion['lote.observacion']     = escaparHTML(limitarLongitud(l.observacion || "", 500));
+            if (l.usaVencimiento !== undefined)
+                datosActualizacion['lote.usaVencimiento']  = Boolean(l.usaVencimiento);
+            if (l.diasAlerta !== undefined)
+                datosActualizacion['lote.diasAlerta']      = Number(l.diasAlerta);
         }
 
         const productoActualizado = await Producto.findByIdAndUpdate(
