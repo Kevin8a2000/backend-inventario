@@ -1,9 +1,16 @@
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false,
+    auth: {
+        user: process.env.BREVO_SMTP_USER,
+        pass: process.env.BREVO_SMTP_PASS
+    }
+});
 
-
-const FROM = process.env.RESEND_FROM || "onboarding@resend.dev";
+const FROM = process.env.BREVO_FROM;
 
 
 
@@ -94,11 +101,9 @@ const enviarCorreo = async (destinatario, asunto, mensaje, archivoAdjunto = null
         }];
     }
 
-    const { data, error } = await resend.emails.send(payload);
+    const info = await transporter.sendMail(payload);
 
-    if (error) throw new Error(error.message);
-
-    console.log(`📧 Correo enviado a ${destinatario} | id: ${data.id}`);
+    console.log(`📧 Correo enviado a ${destinatario} | id: ${info.messageId}`);
 };
 
 // =====================================================
@@ -123,16 +128,14 @@ const enviarCorreoRecuperacion = async (destinatario, nombre, token) => {
         link
     );
 
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
         from: FROM,
         to: destinatario,
         subject: "🔐 Recuperación de contraseña",
         html
     });
 
-    if (error) throw new Error(error.message);
-
-    console.log(`📧 Recuperación enviada a ${destinatario} | id: ${data.id}`);
+    console.log(`📧 Recuperación enviada a ${destinatario} | id: ${info.messageId}`);
 };
 
 // =====================================================
@@ -150,16 +153,14 @@ const enviarCorreoAlertaStock = async (destinatario, productoNombre, stockActual
 
     const html = generarTemplate("⚠️ Alerta de Stock Bajo", mensaje);
 
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
         from: FROM,
         to: destinatario,
         subject: `⚠️ Stock bajo: ${productoNombre}`,
         html
     });
 
-    if (error) throw new Error(error.message);
-
-    console.log(`📧 Alerta stock enviada a ${destinatario} | id: ${data.id}`);
+    console.log(`📧 Alerta stock enviada a ${destinatario} | id: ${info.messageId}`);
 };
 
 // =====================================================
@@ -228,16 +229,14 @@ const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
             </html>
         `;
 
-        const { data, error } = await resend.emails.send({
+        const info = await transporter.sendMail({
             from: FROM,
             to: destinatario,
             subject: '📦 Reporte Semanal de Inventario — InvStock La Costa',
             html
         });
 
-        if (error) throw new Error(error.message);
-
-        console.log(`📧 Reporte semanal enviado a ${destinatario} | id: ${data.id}`);
+        console.log(`📧 Reporte semanal enviado a ${destinatario} | id: ${info.messageId}`);
 
     } catch (error) {
         console.log("❌ Error reporte semanal:", error.message);
@@ -260,16 +259,14 @@ const enviarCorreoCambioEmail = async (destinatario, nombre, emailNuevo) => {
 
     const html = generarTemplate("📧 Cambio de Correo Electrónico", mensaje);
 
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
         from: FROM,
         to: destinatario,
         subject: "📧 Tu correo electrónico ha sido actualizado",
         html
     });
 
-    if (error) throw new Error(error.message);
-
-    console.log(`📧 Cambio de correo enviado a ${destinatario} | id: ${data.id}`);
+    console.log(`📧 Cambio de correo enviado a ${destinatario} | id: ${info.messageId}`);
 };
 
 // =====================================================
