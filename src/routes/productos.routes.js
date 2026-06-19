@@ -407,7 +407,7 @@ router.put(
             enviarCorreo(
                 process.env.EMAIL_TO,
                 "✏️ Lote actualizado",
-                `Producto: ${producto.nombre}\n\nLote: ${producto.lote}\n\nSKU: ${producto.sku}\n\nStock anterior: ${stockAnterior}\n\nNuevo stock: ${producto.stock}`
+                `Producto: ${producto.nombre} | Lote: ${producto.lote?.codigo || 'S/N'} | SKU: ${producto.sku} | Stock anterior: ${stockAnterior} | Nuevo stock: ${producto.stock}`
             ).catch(err => console.error("Error al enviar correo lote:", err.message));
 
             res.json({ mensaje: "Lote actualizado correctamente", producto });
