@@ -88,7 +88,9 @@ router.get(
         try {
             const { search, estado } = req.query;
             const hoy = new Date();
-            let productos = await Producto.find({ usaLotes: true }).populate("categoria");
+            let productos = await Producto.find({
+                $or: [{ "lotes.0": { $exists: true } }, { usaLotes: true }]
+            }).populate("categoria");
 
             let lotes = [];
             productos.forEach(p => {
@@ -110,7 +112,7 @@ router.get(
                 } else {
                     // Formato antiguo: lote como objeto único en el documento
                     lotes.push({
-                        id:               p._id,
+                        id:               p.lote?._id || p._id,
                         productoId:       p._id,
                         producto:         p.nombre,
                         marca:            p.marca,
@@ -213,6 +215,7 @@ router.post(
                 observacion:      sanitizarTexto(observacionLote || '')
             });
 
+            producto.usaLotes = true;
             producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
             await producto.save();
 
