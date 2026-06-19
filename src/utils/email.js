@@ -85,7 +85,7 @@ const generarTemplate = (titulo, mensaje, botonTexto = null, botonLink = null) =
                         📅 Fecha: ${new Date().toLocaleString()}
                     </p>
                     <p style="color:white;font-size:15px;margin:0;font-weight:bold;">
-                        📦 Sistema: InvStock La Costa
+                        📦 Sistema: INVENSTOCK La Costa
                     </p>
                 </div>
 
@@ -205,7 +205,7 @@ const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
                                 📅 Fecha: ${new Date().toLocaleString()}
                             </p>
                             <p style="color:white;font-size:15px;margin:8px 0 0;font-weight:bold;">
-                                📦 Sistema: InvStock La Costa
+                                📦 Sistema: INVENSTOCK La Costa
                             </p>
                         </div>
                         <div style="margin-top:20px;color:#cbd5e1;font-size:12px;">
