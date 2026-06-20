@@ -393,14 +393,16 @@ router.delete(
             producto = await Producto.findById(id);
             if (producto && producto.usaLotes && producto.lotes.length === 0) {
                 const codigoLote = producto.lote?.codigo || 'S/N';
+                const nombreProducto = producto.nombre;
 
-                producto.lote = { codigo: 'N/A', fechaEntrada: new Date(), usaVencimiento: false, fechaVencimiento: null, diasAlerta: 30, observacion: '' };
-                producto.stock = 0;
-                await producto.save();
+                await Producto.findByIdAndUpdate(id, {
+                    $unset: { lote: "" },
+                    $set: { stock: 0, usaLotes: false }
+                });
 
                 await crearNotificacion(
                     "Lote eliminado",
-                    `El lote ${codigoLote} del producto ${producto.nombre} fue eliminado.`,
+                    `El lote ${codigoLote} del producto ${nombreProducto} fue eliminado.`,
                     "warning"
                 );
 
