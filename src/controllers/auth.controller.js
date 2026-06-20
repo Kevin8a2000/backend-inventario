@@ -380,6 +380,9 @@ const login = async (req, res) => {
                 notificaciones:
                     usuario.notificaciones,
 
+                fotoPerfil:
+                    usuario.fotoPerfil || null,
+
                 preferencias: {
                     email:    usuario.preferencias?.email    ?? true,
                     reportes: usuario.preferencias?.reportes ?? true,
