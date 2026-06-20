@@ -82,7 +82,7 @@ const generarTemplate = (titulo, mensaje, botonTexto = null, botonLink = null) =
                 <div style="width:95%;margin:auto;margin-top:45px;background:#202c46;
                     border-radius:12px;padding:28px 20px;box-sizing:border-box;">
                     <p style="color:white;font-size:15px;margin:0;margin-bottom:18px;font-weight:bold;">
-                        📅 Fecha: ${new Date().toLocaleString()}
+                        📅 Fecha: ${new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                     </p>
                     <p style="color:white;font-size:15px;margin:0;font-weight:bold;">
                         📦 Sistema: INVENSTOCK La Costa
@@ -202,7 +202,7 @@ const enviarCorreoReporteSemanal = async (destinatario, nombre, productos) => {
                         </div>
                         <div style="margin-top:28px;background:#202c46;border-radius:12px;padding:20px;">
                             <p style="color:white;font-size:15px;margin:0;font-weight:bold;">
-                                📅 Fecha: ${new Date().toLocaleString()}
+                                📅 Fecha: ${new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                             </p>
                             <p style="color:white;font-size:15px;margin:8px 0 0;font-weight:bold;">
                                 📦 Sistema: INVENSTOCK La Costa
