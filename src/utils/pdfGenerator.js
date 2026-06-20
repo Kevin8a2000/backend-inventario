@@ -276,8 +276,9 @@ const generarPDF = async (filtros = {}) => {
             const [year, month] =
                 mes.split("-");
 
+            // Día 2 en UTC para que UTC-5 (Bogotá) siga dentro del mismo mes
             const fechaBonita =
-                new Date(year, month - 1);
+                new Date(Date.UTC(Number(year), Number(month) - 1, 2));
 
             doc.fontSize(18)
 
