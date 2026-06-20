@@ -88,41 +88,25 @@ router.get(
         try {
             const { search, estado } = req.query;
             const hoy = new Date();
-            let productos = await Producto.find({
-                $or: [{ "lotes.0": { $exists: true } }, { usaLotes: true }]
+            const productos = await Producto.find({
+                "lotes.0": { $exists: true }
             }).populate("categoria");
 
             let lotes = [];
             productos.forEach(p => {
-                if (p.lotes && p.lotes.length > 0) {
-                    // Formato nuevo: array de lotes dentro del producto
-                    p.lotes.forEach(l => {
-                        lotes.push({
-                            id:               l._id,
-                            productoId:       p._id,
-                            producto:         p.nombre,
-                            marca:            p.marca,
-                            categoria:        p.categoria?.nombre,
-                            lote:             l,
-                            sku:              p.sku,
-                            fechaVencimiento: l.fechaVencimiento,
-                            stock:            l.stock
-                        });
-                    });
-                } else {
-                    // Formato antiguo: lote como objeto único en el documento
+                p.lotes.forEach(l => {
                     lotes.push({
-                        id:               p.lote?._id || p._id,
+                        id:               l._id,
                         productoId:       p._id,
                         producto:         p.nombre,
                         marca:            p.marca,
                         categoria:        p.categoria?.nombre,
-                        lote:             p.lote,
+                        lote:             l,
                         sku:              p.sku,
-                        fechaVencimiento: p.fechaVencimiento,
-                        stock:            p.stock
+                        fechaVencimiento: l.fechaVencimiento,
+                        stock:            l.stock
                     });
-                }
+                });
             });
 
             if (search && typeof search === 'string') {
