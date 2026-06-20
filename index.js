@@ -147,12 +147,12 @@ app.locals.limiterAuth = limiterAuth;
 // =====================================================
 
 app.use(express.json({
-    limit: '200kb'
+    limit: '2mb'
 }));
 
 app.use(express.urlencoded({
     extended: true,
-    limit: '200kb',
+    limit: '2mb',
     parameterLimit: 50
 }));
 
