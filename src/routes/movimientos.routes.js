@@ -10,10 +10,11 @@ const {
 } = require("../controllers/movimientos.controller");
 
 const verificarToken = require("../middlewares/auth");
+const verificarPermiso = require("../middlewares/verificarPermiso");
 const { validarMovimiento } = require("../middlewares/validarInputs");
 
 // CREAR MOVIMIENTO
-router.post("/", verificarToken, validarMovimiento, crearMovimiento);
+router.post("/", verificarToken, verificarPermiso("registrar_movimiento"), validarMovimiento, crearMovimiento);
 
 // 🟣 MOVIMIENTOS DE HOY (NUEVO)
 router.get("/hoy", verificarToken, async (req, res) => {
@@ -35,7 +36,7 @@ router.get("/hoy", verificarToken, async (req, res) => {
 });
 
 // OBTENER MOVIMIENTOS
-router.get("/", verificarToken, async (req, res) => {
+router.get("/", verificarToken, verificarPermiso("registrar_movimiento"), async (req, res) => {
 
     try {
 
@@ -79,7 +80,9 @@ router.get("/", verificarToken, async (req, res) => {
 
     } catch (error) {
 
-        console.log(error);
+        if (process.env.NODE_ENV === 'development') {
+            console.error("Error al obtener movimientos:", error);
+        }
 
         res.status(500).json({
             error: "Error al obtener movimientos"

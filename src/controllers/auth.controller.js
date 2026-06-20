@@ -290,14 +290,16 @@ const login = async (req, res) => {
                 email: emailLimpio
             });
 
+        // Mensaje genérico para no revelar si el email existe (previene enumeración de usuarios)
+        const ERROR_CREDENCIALES = "Email o contraseña incorrectos";
+
         if (!usuario) {
 
-            return res.status(400).json({
+            return res.status(401).json({
 
                 ok: false,
 
-                error:
-                    "Usuario no existe"
+                error: ERROR_CREDENCIALES
             });
         }
 
@@ -315,12 +317,11 @@ const login = async (req, res) => {
 
         if (!valido) {
 
-            return res.status(400).json({
+            return res.status(401).json({
 
                 ok: false,
 
-                error:
-                    "Contraseña incorrecta"
+                error: ERROR_CREDENCIALES
             });
         }
 

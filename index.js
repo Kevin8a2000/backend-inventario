@@ -275,8 +275,9 @@ app.use((req, res) => {
 
 app.use((error, req, res, next) => {
 
-    console.log("❌ ERROR GLOBAL:");
-    console.log(error);
+    if (process.env.NODE_ENV === 'development') {
+        console.error("❌ ERROR GLOBAL:", error);
+    }
 
     res.status(500).json({
 
