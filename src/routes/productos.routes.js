@@ -377,18 +377,18 @@ router.delete(
                 if (!loteEntry) {
                     return res.status(404).json({ ok: false, error: "Lote no encontrado" });
                 }
-                const codigoLote = loteEntry.codigo || 'S/N';
-                const stockLote  = loteEntry.stock  || 0;
+                const codigoLote    = loteEntry.codigo || 'S/N';
+                const nombreProducto = producto.nombre;
 
-                // $pull a nivel MongoDB: casting correcto de ObjectId y operación atómica
-                await Producto.findByIdAndUpdate(producto._id, {
-                    $pull: { lotes: { _id: id } },
-                    $inc:  { stock: -stockLote }
-                });
+                // deleteOne() elimina el subdocumento del array en memoria (Mongoose 9)
+                loteEntry.deleteOne();
+                // Recalcular stock con los lotes restantes (ya sin el eliminado)
+                producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
+                await producto.save();
 
                 await crearNotificacion(
                     "Lote eliminado",
-                    `El lote ${codigoLote} del producto ${producto.nombre} fue eliminado.`,
+                    `El lote ${codigoLote} del producto ${nombreProducto} fue eliminado.`,
                     "warning"
                 );
 
