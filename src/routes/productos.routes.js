@@ -374,11 +374,17 @@ router.delete(
             let producto = await Producto.findOne({ "lotes._id": id });
             if (producto) {
                 const loteEntry = producto.lotes.id(id);
-                const codigoLote = loteEntry?.codigo || 'S/N';
+                if (!loteEntry) {
+                    return res.status(404).json({ ok: false, error: "Lote no encontrado" });
+                }
+                const codigoLote = loteEntry.codigo || 'S/N';
+                const stockLote  = loteEntry.stock  || 0;
 
-                producto.lotes.pull({ _id: id });
-                producto.stock = producto.lotes.reduce((sum, l) => sum + l.stock, 0);
-                await producto.save();
+                // $pull a nivel MongoDB: casting correcto de ObjectId y operación atómica
+                await Producto.findByIdAndUpdate(producto._id, {
+                    $pull: { lotes: { _id: id } },
+                    $inc:  { stock: -stockLote }
+                });
 
                 await crearNotificacion(
                     "Lote eliminado",
