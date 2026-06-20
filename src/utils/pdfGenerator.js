@@ -246,7 +246,7 @@ const generarPDF = async (filtros = {}) => {
                 new Date(mov.createdAt);
 
             const mes =
-                `${fecha.getFullYear()}-${fecha.getMonth() + 1}`;
+                `${fecha.getUTCFullYear()}-${fecha.getUTCMonth() + 1}`;
 
             if (!grupos[mes]) {
 
